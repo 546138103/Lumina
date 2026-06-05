@@ -1,10 +1,12 @@
 using UnityEngine;
 
-[RequireComponent(typeof(SphereCollider))]
+[RequireComponent(typeof(Collider))]
 public class NPCInteractionTrigger : MonoBehaviour
 {
     [Header("把配置好的 DialogueNode 文件拖到这里")]
     public DialogueNode startNode;
+    [Header("Optional: real NPC to face player and play animation")]
+    public Transform npcTarget;
     public AudioClip interactionVoice; // 交互语音
     private bool _isInteracting = false; // 防止在圈内重复触发
     private float cooldownTime = 5f; // 触发冷却时间（秒
@@ -22,12 +24,13 @@ public class NPCInteractionTrigger : MonoBehaviour
             //transform.LookAt(lookPos);
 
             // 发送数据，弹出 UI！
-            EventManager.TriggerInteractionUI(startNode);
+            EventManager.TriggerInteractionUI(startNode, ResolveNPCTransform(), other.transform);
             if (Time.time - lastTriggerTime >= cooldownTime)
             {
                 lastTriggerTime = Time.time;
-                if (interactionVoice != null)
-                    Camera.main.GetComponent<AudioSource>().PlayOneShot(interactionVoice);
+                AudioSource audioSource = Camera.main != null ? Camera.main.GetComponent<AudioSource>() : null;
+                if (interactionVoice != null && audioSource != null)
+                    audioSource.PlayOneShot(interactionVoice);
             }
         }
     }
@@ -40,5 +43,19 @@ public class NPCInteractionTrigger : MonoBehaviour
             _isInteracting = false;
             EventManager.CloseInteractionUI();
         }
+    }
+
+    private Transform ResolveNPCTransform()
+    {
+        if (npcTarget != null)
+        {
+            return npcTarget;
+        }
+
+        Animator animator = GetComponent<Animator>();
+        if (animator == null) animator = GetComponentInParent<Animator>();
+        if (animator == null) animator = GetComponentInChildren<Animator>();
+
+        return animator != null ? animator.transform : transform;
     }
 }

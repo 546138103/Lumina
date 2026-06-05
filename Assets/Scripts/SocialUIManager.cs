@@ -1,8 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro; // 【新增】必须引入 TextMeshPro
+using System.Collections;
+using TMPro;
 using System.Collections.Generic;
-using UnityEngine.Playables; // 引入 Timeline
+using UnityEngine.Playables;
 
 public class SocialUIManager : MonoBehaviour
 {
@@ -14,11 +15,17 @@ public class SocialUIManager : MonoBehaviour
     public GameObject buttonPrefab;
 
     [Header("过场动画放映机")]
-    public PlayableDirector director;   // 【新增】用来播放 Timeline 的组件
+    public PlayableDirector director;
 
     private Animator _currentNPCAnimator;
     private List<GameObject> _activeButtons = new List<GameObject>();
     private AudioSource _audioSource;
+    private bool _isInteractionUIOpen;
+    private Transform _currentNPCTransform;
+    private Transform _currentPlayerTransform;
+    private Vector3 _currentNPCOriginalPosition;
+    private Quaternion _currentNPCOriginalRotation;
+    private Coroutine _npcAnimationRoutine;
 
     void OnEnable()
     {
@@ -36,17 +43,26 @@ public class SocialUIManager : MonoBehaviour
     {
         HideUI();
         _audioSource = Camera.main != null ? Camera.main.GetComponent<AudioSource>() : null;
-        // 如果面板上没挂 PlayableDirector，自动加一个
         if (director == null) director = gameObject.AddComponent<PlayableDirector>();
+    }
+
+    void LateUpdate()
+    {
+        if (_isInteractionUIOpen)
+        {
+            ForceCursorForUI();
+        }
     }
 
     void DisplayNode(DialogueNode node)
     {
-
+        if (node == null) return;
+        CacheInteractionContext();
+        _isInteractionUIOpen = true;
+        ForceCursorForUI();
         GameEventManager.OnToggleUIMode?.Invoke(true);
         uiPanel.SetActive(true);
         ClearButtons();
-
 
         foreach (BranchOption option in node.options)
         {
@@ -71,13 +87,11 @@ public class SocialUIManager : MonoBehaviour
 
         switch (res.type)
         {
-
             case InteractionResultType.NextNode:
                 DisplayNode(res.nextNode);
                 break;
 
             case InteractionResultType.PlayTimeline:
-                // 【新增逻辑】隐藏整个对话框，播放录制好的多人过场动画！
                 uiPanel.SetActive(false);
                 if (res.timelineAsset != null)
                 {
@@ -86,8 +100,17 @@ public class SocialUIManager : MonoBehaviour
                 HideUI();
                 break;
 
+            case InteractionResultType.End:
+                HideUI();
+                break;
+
+            case InteractionResultType.PlayNPCAnimation:
+                HideUI();
+                PlayNPCAnimationResult(res);
+                break;
         }
     }
+
     void OnWaveSelect(BranchOption selectedOption)
     {
         if (selectedOption.result.clip != null && _audioSource != null)
@@ -102,7 +125,99 @@ public class SocialUIManager : MonoBehaviour
 
     void HideUI()
     {
+        _isInteractionUIOpen = false;
         uiPanel.SetActive(false);
         GameEventManager.OnToggleUIMode?.Invoke(false);
+        ForceCursorForGameplay();
+    }
+
+    private void ForceCursorForUI()
+    {
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+    }
+
+    private void ForceCursorForGameplay()
+    {
+        UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+    }
+
+    private void CacheInteractionContext()
+    {
+        _currentNPCTransform = EventManager.CurrentNPCTransform;
+        _currentPlayerTransform = EventManager.CurrentPlayerTransform;
+
+        if (_currentNPCTransform != null)
+        {
+            _currentNPCOriginalPosition = _currentNPCTransform.position;
+            _currentNPCOriginalRotation = _currentNPCTransform.rotation;
+            _currentNPCAnimator = _currentNPCTransform.GetComponent<Animator>();
+        }
+        else
+        {
+            _currentNPCAnimator = null;
+        }
+    }
+
+    private void PlayNPCAnimationResult(InteractionResult result)
+    {
+        if (_npcAnimationRoutine != null)
+        {
+            StopCoroutine(_npcAnimationRoutine);
+        }
+
+        _npcAnimationRoutine = StartCoroutine(NPCAnimationRoutine(result));
+    }
+
+    private IEnumerator NPCAnimationRoutine(InteractionResult result)
+    {
+        if (_currentNPCTransform == null)
+        {
+            yield break;
+        }
+
+        FaceNPCToPlayer();
+
+        if (_currentNPCAnimator != null && !string.IsNullOrEmpty(result.npcAnimationState))
+        {
+            _currentNPCAnimator.Play(result.npcAnimationState, 0, 0f);
+        }
+
+        if (result.clip != null && _audioSource != null)
+        {
+            _audioSource.PlayOneShot(result.clip);
+        }
+
+        yield return new WaitForSeconds(Mathf.Max(0f, result.npcAnimationDuration));
+
+        if (_currentNPCAnimator != null && !string.IsNullOrEmpty(result.npcResetAnimationState))
+        {
+            _currentNPCAnimator.Play(result.npcResetAnimationState, 0, 0f);
+        }
+
+        if (result.restoreNpcPosition)
+        {
+            _currentNPCTransform.position = _currentNPCOriginalPosition;
+        }
+
+        if (result.restoreNpcRotation)
+        {
+            _currentNPCTransform.rotation = _currentNPCOriginalRotation;
+        }
+
+        _npcAnimationRoutine = null;
+    }
+
+    private void FaceNPCToPlayer()
+    {
+        if (_currentNPCTransform == null || _currentPlayerTransform == null) return;
+
+        Vector3 dir = _currentPlayerTransform.position - _currentNPCTransform.position;
+        dir.y = 0f;
+        if (dir.sqrMagnitude <= 0.0001f) return;
+
+        _currentNPCTransform.rotation = Quaternion.LookRotation(dir.normalized);
     }
 }

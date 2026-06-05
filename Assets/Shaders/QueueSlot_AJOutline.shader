@@ -9,6 +9,7 @@ Shader "Lumina/Queue Slot AJ Outline"
         _FlickerSpeed("Flicker Speed", Range(0.1, 8.0)) = 2.0
         _FlickerAmount("Flicker Amount", Range(0.0, 1.0)) = 0.45
         _RimPower("Inner Rim Power", Range(0.5, 8.0)) = 2.5
+        [HideInInspector] _LuminaEffectTime("Lumina Effect Time", Float) = 0
     }
 
     SubShader
@@ -59,11 +60,12 @@ Shader "Lumina/Queue Slot AJ Outline"
                 float _FlickerSpeed;
                 float _FlickerAmount;
                 float _RimPower;
+                float _LuminaEffectTime;
             CBUFFER_END
 
             float Pulse()
             {
-                float wave = sin(_Time.y * _FlickerSpeed) * 0.5 + 0.5;
+                float wave = sin(_LuminaEffectTime * _FlickerSpeed) * 0.5 + 0.5;
                 return lerp(1.0 - _FlickerAmount, 1.0 + _FlickerAmount, wave);
             }
 
@@ -125,11 +127,12 @@ Shader "Lumina/Queue Slot AJ Outline"
                 float _FlickerSpeed;
                 float _FlickerAmount;
                 float _RimPower;
+                float _LuminaEffectTime;
             CBUFFER_END
 
             float Pulse()
             {
-                float wave = sin(_Time.y * _FlickerSpeed) * 0.5 + 0.5;
+                float wave = sin(_LuminaEffectTime * _FlickerSpeed) * 0.5 + 0.5;
                 return lerp(1.0 - _FlickerAmount, 1.0 + _FlickerAmount, wave);
             }
 

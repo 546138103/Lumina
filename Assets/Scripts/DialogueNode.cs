@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables; // 引入 Timeline 命名空间
 
-public enum InteractionResultType { PlayTimeline, NextNode }
+public enum InteractionResultType { PlayTimeline, NextNode, End, PlayNPCAnimation }
 
 [System.Serializable]
 public class InteractionResult
@@ -12,6 +12,12 @@ public class InteractionResult
     public AudioClip clip;
     public PlayableAsset timelineAsset; // 【新增】录制好的多人互动 Timeline 文件
     public Sprite sprite;
+    [Header("NPC Animation Result")]
+    public string npcAnimationState = "Waving";
+    public float npcAnimationDuration = 1.5f;
+    public string npcResetAnimationState = "Idle";
+    public bool restoreNpcRotation = true;
+    public bool restoreNpcPosition = true;
 }
 
 [System.Serializable]
