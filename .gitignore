@@ -1,0 +1,48 @@
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# AI
+*.claude
+
+# Visual Studio / Rider / Cursor / VSCode
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.user
+*.userprefs
+*.suo
+*.tmp
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Gradle / Android
+.gradle/
+*.apk
+*.aab
+
+# Unity packages / exports
+*.unitypackage
+
+# Logs
+*.log

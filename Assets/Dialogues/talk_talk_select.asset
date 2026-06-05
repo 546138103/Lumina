@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f1ed28ad5ce4534ea70110255e887c9, type: 3}
+  m_Name: talk_talk_select
+  m_EditorClassIdentifier: 
+  options:
+  - optionText: "\u6765\u548C\u6211\u4E00\u8D77\u73A9\u5427\uFF01"
+    result:
+      type: 0
+      nextNode: {fileID: 0}
+      clip: {fileID: 8300000, guid: a917c37d853232d42bfed69f956b3d94, type: 3}
+      timelineAsset: {fileID: 11400000, guid: cfecff31a0bc53f4b8b9f0f52022e872, type: 2}
+      sprite: {fileID: 21300000, guid: 76160f1606c2fe34d9dbdba930a8267b, type: 3}
+  - optionText: "\u6211\u53EF\u4EE5\u548C\u4F60\u4E00\u8D77\u73A9\u5417\uFF1F"
+    result:
+      type: 0
+      nextNode: {fileID: 0}
+      clip: {fileID: 8300000, guid: 4ad1761799b5a4b44827a580f078b581, type: 3}
+      timelineAsset: {fileID: 11400000, guid: 67163e2db9d40c34083a845f243afb6b, type: 2}
+      sprite: {fileID: 21300000, guid: a615e0c7103952046bc12cb48ad8c82d, type: 3}
+  - optionText: "\u6211\u8981\u73A9"
+    result:
+      type: 0
+      nextNode: {fileID: 0}
+      clip: {fileID: 0}
+      timelineAsset: {fileID: 11400000, guid: af5401b39291bf2439272c04ec71aaac, type: 2}
+      sprite: {fileID: 21300000, guid: 3025c2f1144b82e41a968427dbfe909f, type: 3}
