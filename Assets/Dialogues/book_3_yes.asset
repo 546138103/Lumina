@@ -15,15 +15,25 @@ MonoBehaviour:
   options:
   - optionText: "\u662F\u7684"
     result:
-      type: 0
+      type: 3
       nextNode: {fileID: 0}
-      clip: {fileID: 8300000, guid: 1d104dd197b2d2f4a86aabb5fc6e1a60, type: 3}
-      timelineAsset: {fileID: 11400000, guid: 14c43bbea5e53ad4f8158f8f55abb115, type: 2}
+      clip: {fileID: 0}
+      timelineAsset: {fileID: 11400000, guid: 802348b600eb8054b99c9bc037a9b0b3, type: 2}
       sprite: {fileID: 21300000, guid: 4fa006110cc54df4d81587c16fc23489, type: 3}
+      npcAnimationState: criticize
+      npcAnimationDuration: 3
+      npcResetAnimationState: Looking Behind
+      restoreNpcRotation: 1
+      restoreNpcPosition: 1
   - optionText: "\u4E0D\u662F"
     result:
-      type: 0
+      type: 2
       nextNode: {fileID: 0}
       clip: {fileID: 8300000, guid: 1d104dd197b2d2f4a86aabb5fc6e1a60, type: 3}
       timelineAsset: {fileID: 11400000, guid: 14c43bbea5e53ad4f8158f8f55abb115, type: 2}
       sprite: {fileID: 21300000, guid: 4fa006110cc54df4d81587c16fc23489, type: 3}
+      npcAnimationState: Waving
+      npcAnimationDuration: 1.5
+      npcResetAnimationState: Idle
+      restoreNpcRotation: 1
+      restoreNpcPosition: 1

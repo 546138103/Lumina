@@ -12,4 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3f1ed28ad5ce4534ea70110255e887c9, type: 3}
   m_Name: end
   m_EditorClassIdentifier: 
-  options: []
+  options:
+  - optionText: 
+    result:
+      type: 2
+      nextNode: {fileID: 0}
+      clip: {fileID: 0}
+      timelineAsset: {fileID: 0}
+      sprite: {fileID: 0}
+      npcAnimationState: Waving
+      npcAnimationDuration: 1.5
+      npcResetAnimationState: Idle
+      restoreNpcRotation: 1
+      restoreNpcPosition: 1
