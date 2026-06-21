@@ -85,6 +85,60 @@ class BodyThread(threading.Thread):
                         self.timeSincePostStatistics = time.time()
                         
                     if results.pose_landmarks:
+                        important_landmarks = {
+                            0: "Nose",
+
+                            # 1: "LeftEyeInner",
+                            # 2: "LeftEye",
+                            3: "LeftEyeOuter",
+
+                            # 4: "RightEyeInner",
+                            # 5: "RightEye",
+                            6: "RightEyeOuter",
+
+                            7: "LeftEar",
+                            8: "RightEar",
+
+                            9: "MouthLeft",
+                            10: "MouthRight",
+
+                            11: "LShoulder",
+                            12: "RShoulder",
+                            13: "LElbow",
+                            14: "RElbow",
+                            15: "LWrist",
+                            16: "RWrist",
+                            23: "LHip",
+                            24: "RHip",
+                            25: "LKnee",
+                            26: "RKnee",
+                            27: "LAnkle",
+                            28: "RAnkle",
+                        }
+                        height, width, _ = image.shape
+                        for index, landmark in enumerate(results.pose_landmarks.landmark):
+                            if index not in important_landmarks:
+                                continue
+
+                            pixel_x = int(landmark.x * width)
+                            pixel_y = int(landmark.y * height)
+
+                            text = (
+                                f"{index} {important_landmarks[index]} "
+                                f"({landmark.x:.2f},{landmark.y:.2f},{landmark.z:.2f})"
+                            )
+
+                            cv2.circle(image, (pixel_x, pixel_y), 5, (0, 255, 0), -1)
+                            cv2.putText(
+                                image,
+                                text,
+                                (pixel_x + 6, pixel_y - 6),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.35,
+                                (0, 0, 255),
+                                1,
+                                cv2.LINE_AA
+                            )
                         mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS, 
                                                 mp_drawing.DrawingSpec(color=(255, 100, 0), thickness=2, circle_radius=4),
                                                 mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=2, circle_radius=2),

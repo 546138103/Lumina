@@ -28,6 +28,7 @@ public class PipeServer : MonoBehaviour
     public float debug_samplespersecond;
     public int samplesForPose = 1;
     public bool active;
+    public bool logLandmarkTargets = true;
 
     private NamedPipeServerStream serverNP;
     private BinaryReader reader;
@@ -69,15 +70,41 @@ public class PipeServer : MonoBehaviour
         UpdateBody(body);
     }
 
-    private void UpdateBody(Body b)
+    private void UpdateBody(Body b)//每个Unity渲染帧执行一次
     {
+        StringBuilder landmarkLog = logLandmarkTargets ? new StringBuilder(2048) : null;
         for (int i = 0; i < LANDMARK_COUNT; ++i)
         {
-            if (b.positionsBuffer[i].accumulatedValuesCount < samplesForPose)
-                continue;
-            
-            b.localPositionTargets[i] = b.positionsBuffer[i].value / (float)b.positionsBuffer[i].accumulatedValuesCount * multiplier;
-            b.positionsBuffer[i] = new AccumulatedBuffer(Vector3.zero,0);
+            int receivedSamples = b.positionsBuffer[i].accumulatedValuesCount;
+            bool targetUpdated = receivedSamples >= samplesForPose;
+
+            if (targetUpdated)
+            {
+                b.localPositionTargets[i] = b.positionsBuffer[i].value / (float)receivedSamples * multiplier;
+                b.positionsBuffer[i] = new AccumulatedBuffer(Vector3.zero, 0);
+            }
+
+            if (landmarkLog != null)
+            {
+                landmarkLog.Append(i)
+                    .Append(" ")
+                    .Append((Landmark)i)
+                    .Append(": target=")
+                    .Append(b.localPositionTargets[i].ToString("F6"))
+                    .Append(", samples=")
+                    .Append(receivedSamples)
+                    .Append(", updated=")
+                    .Append(targetUpdated)
+                    .AppendLine();
+            }
+        }
+
+        if (landmarkLog != null)
+        {
+            landmarkLog.Append("Printed at: ")
+                .Append(System.DateTime.Now.ToString("HH:mm:ss.fffffff",
+                    System.Globalization.CultureInfo.InvariantCulture));
+            Debug.Log(landmarkLog.ToString());
         }
 
         Vector3 offset = Vector3.zero;
@@ -97,7 +124,7 @@ public class PipeServer : MonoBehaviour
         bodyParent.gameObject.SetActive(visible);
     }
 
-    private void Run()
+    private void Run()//从消息队列取出数据并解析到positionsBuffer
     {
         System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 
@@ -152,6 +179,8 @@ public class PipeServer : MonoBehaviour
                     h.positionsBuffer[i].value += new Vector3(float.Parse(s[1]), float.Parse(s[2]), float.Parse(s[3]));
                     h.positionsBuffer[i].accumulatedValuesCount += 1;
                     h.active = true;
+
+
                 }
             }
             catch (EndOfStreamException)

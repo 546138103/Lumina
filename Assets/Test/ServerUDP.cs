@@ -48,7 +48,7 @@ class ServerUDP
         Thread t = new Thread(new ThreadStart(StartListening));
         t.Start();
     }
-    public void StartListening()
+    public void StartListening()//等待并接收UDP数据包
     {
         print("Waiting for messages @Port:"+port);
         messageBuffer.Clear();
@@ -72,7 +72,7 @@ class ServerUDP
                                 print("Too slow to keep up with packets being sent (dropping old data). Make sure you are getting messages with GetMessage().");
                         }
                         messageBuffer.Enqueue(sa[i]);
-                        UnityEngine.Debug.LogWarning("(" + messageBuffer.Count + ") " + sa[i]);
+                        print("(" + messageBuffer.Count + ") " + sa[i]);
                     }
                 }
             }
@@ -98,6 +98,6 @@ class ServerUDP
 
     private void print(object o)
     {
-        Console.WriteLine(o);
+        UnityEngine.Debug.Log(o);
     }
 }
