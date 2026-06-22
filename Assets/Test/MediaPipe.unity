@@ -1728,7 +1728,7 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Controller
       value: 
-      objectReference: {fileID: 9100000, guid: 2f3aba5b644a1e746b0c218b2e76df43, type: 2}
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 825894089210680117, guid: e9d6689ee3a37f84a94c51eaaa7b2468, type: 3}
@@ -2247,13 +2247,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1508218835}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.060190428, y: 0.130632, z: -0.007945658, w: 0.98957026}
-  m_LocalPosition: {x: -1.7571235, y: 1.6234415, z: -3.3631973}
+  m_LocalRotation: {x: 0.05947476, y: 0.060073216, z: -0.012197312, w: 0.99634594}
+  m_LocalPosition: {x: -1.24, y: 1.62, z: -3.48}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 6.891, y: 6.841, z: -0.99}
 --- !u!114 &1508218839
 MonoBehaviour:
   m_ObjectHideFlags: 0

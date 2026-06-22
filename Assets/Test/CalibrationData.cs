@@ -22,7 +22,7 @@ public class CalibrationData
     public void Tick(Quaternion newTarget, float speed)
     {
         parent.rotation = newTarget;
-        parent.rotation = Quaternion.Lerp(parent.rotation, targetRotation, Time.deltaTime * speed);
+        //parent.rotation = Quaternion.Lerp(parent.rotation, targetRotation, Time.deltaTime * speed);
     }
 
     public Vector3 CurrentDirection => (tchild.position - tparent.position).normalized;

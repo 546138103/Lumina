@@ -9,6 +9,8 @@ public class Avatar : MonoBehaviour
     public LayerMask ground;
     public bool footTracking = true;
     public float footGroundOffset = .1f;
+    [Header("Head Tracking")]
+    [Range(0f, 3f)] public float headRotationMultiplier = 1.5f;
     [Header("Calibration")]
     public bool useCalibrationData = false;
     public PersistentCalibrationData calibrationData;
@@ -175,6 +177,8 @@ public class Avatar : MonoBehaviour
             Vector3 hd = head.CurrentDirection;
             // Some are partial rotations which we can stack together to specify how much we should rotate.
             Quaternion headr = Quaternion.FromToRotation(head.initialDir, hd);
+            Quaternion amplifiedHeadRotation = Quaternion.SlerpUnclamped(
+                Quaternion.identity, headr, headRotationMultiplier);
             Quaternion twist = Quaternion.FromToRotation(hipsTwist.initialDir, 
                 Vector3.Slerp(hipsTwist.initialDir,hipsTwist.CurrentDirection,.25f));
             Quaternion updown = Quaternion.FromToRotation(spineUpDown.initialDir,
@@ -188,7 +192,7 @@ public class Avatar : MonoBehaviour
             hipsTwist.Tick(h * hipsTwist.initialRotation, speed);
             spineUpDown.Tick(s * spineUpDown.initialRotation, speed);
             chest.Tick(c * chest.initialRotation, speed);
-            head.Tick(updown * twist * headr * head.initialRotation, speed);
+            head.Tick(updown * twist * amplifiedHeadRotation * head.initialRotation, speed);
 
             // For additional responsiveness, we rotate the entire transform slightly based on the hips.
             Vector3 d = Vector3.Slerp(hipsTwist.initialDir, hipsTwist.CurrentDirection, .25f);

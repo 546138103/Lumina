@@ -22,12 +22,15 @@ class CaptureThread(threading.Thread):
         self.cap = cv2.VideoCapture(global_vars.CAM_INDEX) # sometimes it can take a while for certain video captures
         if global_vars.USE_CUSTOM_CAM_SETTINGS:
             self.cap.set(cv2.CAP_PROP_FPS, global_vars.FPS)
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,global_vars.WIDTH)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,global_vars.HEIGHT)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, global_vars.CAPTURE_WIDTH)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, global_vars.CAPTURE_HEIGHT)
 
         time.sleep(1)
         
-        print("Opened Capture @ %s fps"%str(self.cap.get(cv2.CAP_PROP_FPS)))
+        print("Opened Capture @ %s fps, %sx%s" % (
+            str(self.cap.get(cv2.CAP_PROP_FPS)),
+            str(int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))),
+            str(int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))))
         while not global_vars.KILL_THREADS:
             self.ret, self.frame = self.cap.read()
             self.isRunning = True
@@ -62,7 +65,11 @@ class BodyThread(threading.Thread):
                 print("Waiting for camera and capture thread.")
                 time.sleep(0.5)
             print("Beginning capture")
-                
+
+            if global_vars.DEBUG:
+                # Keep the preview at the camera frame's native aspect ratio.
+                cv2.namedWindow('Body Tracking', cv2.WINDOW_AUTOSIZE)
+                 
             while not global_vars.KILL_THREADS and capture.cap.isOpened():
                 ti = time.time()
 
@@ -71,6 +78,10 @@ class BodyThread(threading.Thread):
                 image = capture.frame
                                 
                 # Image transformations and stuff
+                image = cv2.resize(
+                    image,
+                    (global_vars.PROCESS_WIDTH, global_vars.PROCESS_HEIGHT),
+                    interpolation=cv2.INTER_AREA)
                 image = cv2.flip(image, 1)
                 image.flags.writeable = global_vars.DEBUG
                 
@@ -90,11 +101,11 @@ class BodyThread(threading.Thread):
 
                             # 1: "LeftEyeInner",
                             # 2: "LeftEye",
-                            3: "LeftEyeOuter",
+                            #3: "LeftEyeOuter",
 
                             # 4: "RightEyeInner",
                             # 5: "RightEye",
-                            6: "RightEyeOuter",
+                            #6: "RightEyeOuter",
 
                             7: "LeftEar",
                             8: "RightEar",
