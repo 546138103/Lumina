@@ -1640,6 +1640,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 541c2fd5ae2c1144aa066d4dbb31ff19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  topParent: {fileID: 0}
+  fparent: {fileID: 0}
+  fchild: {fileID: 0}
+  tparent: {fileID: 0}
+  tchild: {fileID: 0}
 --- !u!4 &1034806750
 Transform:
   m_ObjectHideFlags: 0
@@ -1834,6 +1839,7 @@ MonoBehaviour:
     m_Bits: 1
   footTracking: 0
   footGroundOffset: 0.1
+  headRotationMultiplier: 1.5
   useCalibrationData: 0
   calibrationData: {fileID: 0}
 --- !u!95 &1402048232 stripped
