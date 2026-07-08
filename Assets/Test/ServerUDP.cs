@@ -72,7 +72,8 @@ class ServerUDP
                                 print("Too slow to keep up with packets being sent (dropping old data). Make sure you are getting messages with GetMessage().");
                         }
                         messageBuffer.Enqueue(sa[i]);
-                        print("(" + messageBuffer.Count + ") " + sa[i]);
+                        //打印MiediaPipe的数据包数量和内容
+                        //print("(" + messageBuffer.Count + ") " + sa[i]);
                     }
                 }
             }

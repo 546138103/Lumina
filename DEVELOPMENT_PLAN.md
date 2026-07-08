@@ -52,6 +52,18 @@ Python MediaPipe
 - Python 不负责解释游戏动作，只负责摄像头读取、MediaPipe Pose 检测和关键点发送。
 - Unity 负责动作识别、游戏规则、NPC 反馈、任务状态和 `SocialIntent`。
 
+### 2.5 Unity 侧动作识别脚本
+
+- 已在 `Assets/Test/PoseActionRecognizer.cs` 新增动作识别脚本。
+- 脚本从 `PipeServer` 读取 MediaPipe 关键点，不修改 Python 端。
+- 已实现或预留以下 `SocialIntent`：
+  - `RaiseHand`：任一手腕高于同侧肩膀并保持一小段时间。
+  - `WaveInvite`：手腕在肩膀附近或上方发生左右摆动。
+  - `WaitInZone`：可选等待区域检测。
+  - `FaceAndAttend`：可选面向 NPC 检测。
+  - `RequestObject`：预留给后续具体场景细化。
+- 当前脚本先通过 `Debug.Log` 和 UnityEvent 输出识别结果，后续再接入 NPC 反馈或任务状态。
+
 ## 3. 下一步计划
 
 ### 3.1 稳定 NPC 互动样板场景
@@ -80,7 +92,7 @@ Python MediaPipe
 
 ### 3.3 在 Unity 端做动作规则识别
 
-目标是在 Unity 中把 MediaPipe 关键点转换成动作结果。初期先用规则判断，不急着训练模型。
+目标是在 Unity 中把 MediaPipe 关键点转换成动作结果。初期先用规则判断，不急着训练模型。基础脚本已经放在 `Assets/Test/PoseActionRecognizer.cs`，下一步是挂入 `Assets/Test/MediaPipe.unity` 场景并进行 Play Mode 验证。
 
 优先规则：
 
@@ -115,8 +127,8 @@ Unity 端识别后再生成社交意图，例如：
 
 计划事项：
 
-1. 新增或扩展 Unity 侧接收脚本，解析 Python 发来的关键点数据。
-2. 新增 Unity 侧动作识别脚本，例如 `PoseActionRecognizer` 或 `SocialIntentRecognizer`。
+1. 将 `PoseActionRecognizer` 挂到 `Assets/Test/MediaPipe.unity` 中的 `PipeServer` 或同场景测试对象上。
+2. 在 Inspector 中确认 `PipeServer` 引用、举手/挥手阈值和日志开关。
 3. 先用 `Debug.Log` 验证 `RaiseHand`、`WaveInvite` 等意图是否能在 Unity 内稳定生成。
 4. 再将意图接入 NPC 互动系统，例如挥手触发欢迎动画，举手触发表达需求对话。
 5. 避免在多个 Unity 脚本里重复写姿态判断逻辑，动作规则集中放在一个识别层。
@@ -171,3 +183,4 @@ Kinect 后期停产可以作为风险提醒：体感交互如果存在高延迟�
 - 将 `PROJECT_CONTEXT.md` 改为项目情况预览，只保留当前已有结构和已实现内容。
 - 将已完成计划项和下一步计划集中整理到本文档。
 - 保留 Kinect Game 参考链接，并将 Kinect 的停产与体验问题作为 Lumina 姿态交互的风险提示。
+- 新增 `Assets/Test/PoseActionRecognizer.cs`，开始在 Unity 侧构建动作识别。

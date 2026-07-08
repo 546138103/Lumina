@@ -33,7 +33,7 @@ public sealed class PosePythonProcess : MonoBehaviour
     {
         while (_logQueue.TryDequeue(out var message))
         {
-            Debug.Log(message);
+            //Debug.Log(message);
         }
     }
 

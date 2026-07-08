@@ -116,7 +116,23 @@ Lumina 是一个基于 Unity 的社交互动游戏原型，目标对象是孤独
 
 当前管线允许摄像头、MediaPipe 和 Unity 使用不同帧率。Unity 不需要等待 Python 每帧返回新数据，可以继续使用上一帧结果并通过平滑移动保持动作连续。
 
-## 7. 已有提示特效基础
+## 7. 已有 Unity 侧动作识别测试脚本
+
+当前已在 `Assets/Test` 中加入 Unity 侧动作识别脚本：
+
+- `Assets/Test/PoseActionRecognizer.cs`
+
+该脚本用于在 MediaPipe 测试场景中从 `PipeServer` 读取人体关键点，并在 Unity 侧识别基础社交意图：
+
+- `RaiseHand`：举手。
+- `WaveInvite`：挥手邀请。
+- `WaitInZone`：站在等待区域内停留。
+- `FaceAndAttend`：面向 NPC 并保持关注。
+- `RequestObject`：表达想要物品，当前保留为后续场景细化意图。
+
+当前实现保持项目方向：Python 只负责摄像头读取、MediaPipe Pose 检测和关键点发送；Unity 负责动作识别、游戏规则、NPC 反馈、任务状态和 `SocialIntent`。
+
+## 8. 已有提示特效基础
 
 当前项目中已经有提示类 Shader 动画控制思路，相关文件包括：
 
@@ -132,7 +148,7 @@ Lumina 是一个基于 Unity 的社交互动游戏原型，目标对象是孤独
 - 哪个空位需要排队。
 - 当前目标在哪里。
 
-## 8. 当前已形成的稳定约束
+## 9. 当前已形成的稳定约束
 
 - 打开选项 UI 时，鼠标应该可见并解锁。
 - 关闭选项 UI 后，玩家应回到 3D 操作模式，鼠标状态和玩家控制要恢复。
@@ -142,7 +158,7 @@ Lumina 是一个基于 Unity 的社交互动游戏原型，目标对象是孤独
 - 简单 NPC 反馈优先使用可配置动画结果，复杂演出再使用 Timeline。
 - MediaPipe 提供的是身体关键点，不等于游戏行为；游戏语义应和底层姿态数据分层。
 
-## 9. 文档分工
+## 10. 文档分工
 
 - `README.md`：项目简介、快速使用、主要模块入口。
 - `PROJECT_CONTEXT.md`：项目情况预览，记录当前已有结构和已实现内容。
