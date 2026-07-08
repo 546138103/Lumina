@@ -1620,7 +1620,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1034806750}
-  - component: {fileID: 1034806749}
   m_Layer: 0
   m_Name: Test
   m_TagString: Untagged
@@ -1628,23 +1627,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1034806749
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1034806748}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 541c2fd5ae2c1144aa066d4dbb31ff19, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  topParent: {fileID: 0}
-  fparent: {fileID: 0}
-  fchild: {fileID: 0}
-  tparent: {fileID: 0}
-  tchild: {fileID: 0}
 --- !u!4 &1034806750
 Transform:
   m_ObjectHideFlags: 0
@@ -1747,6 +1729,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1402048234}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: e9d6689ee3a37f84a94c51eaaa7b2468,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1402048235}
   m_SourcePrefab: {fileID: 100100000, guid: e9d6689ee3a37f84a94c51eaaa7b2468, type: 3}
 --- !u!4 &1106876430 stripped
 Transform:
@@ -1861,6 +1847,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   calibrationKey: 99
+--- !u!114 &1402048235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1402048230}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c0ffcdc53d79ae49a336186df637a53, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pipeServer: {fileID: 0}
+  onIntentDetected:
+    m_PersistentCalls:
+      m_Calls: []
+  waitSubject: {fileID: 0}
+  waitZone: {fileID: 0}
+  npcTarget: {fileID: 0}
 --- !u!4 &1429514692 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -3296257366817662916, guid: 1d8370317e1e84b4093f37f536e244d1,

@@ -1,3 +1,0 @@
-参考链接：微软的XBOX360体感游戏：Kinect Game 
-https://www.purexbox.com/games/browse?title=controller%3Akinect&page=2
-2017年停产因为高延迟、高设备昂贵，使用了深度摄像头，以及判断不精准，衣物遮挡等
