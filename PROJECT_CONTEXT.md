@@ -132,7 +132,39 @@ Lumina 是一个基于 Unity 的社交互动游戏原型，目标对象是孤独
 
 当前实现保持项目方向：Python 只负责摄像头读取、MediaPipe Pose 检测和关键点发送；Unity 负责动作识别、游戏规则、NPC 反馈、任务状态和 `SocialIntent`。
 
-## 8. 已有提示特效基础
+## 8. Level2 姿态移动与社交控制脚本
+
+当前已在 `Assets/Scenes/Level2` 中加入一组面向 Level2 场景的姿态控制脚本：
+
+- `Assets/Scenes/Level2/PoseControlMode.cs`
+  - 定义姿态控制模式：`Movement`、`SocialInteraction`、`Disabled`。
+  - 定义儿童手侧和角色手侧，用于处理面对面镜像。
+
+- `Assets/Scenes/Level2/PoseSocialIntentTypes.cs`
+  - 定义 `SocialIntent` 和基础 UnityEvent 类型。
+  - 旧的 `Assets/Test/PoseActionRecognizer.cs` 和 Level2 新社交动作脚本共用这组意图类型。
+
+- `Assets/Scenes/Level2/PoseControlModeManager.cs`
+  - 管理姿态控制模式。
+  - 当前支持调试切换，也提供公开方法供后续触发器或任务系统调用。
+
+- `Assets/Scenes/Level2/PoseMovementInput.cs`
+  - 点击鼠标左键后记录中立姿态，校准完成前不输出姿态移动。
+  - 左右移动使用肩部与髋部综合身体中心的横向偏移，并保持与摄像头画面显示方向一致。
+  - 前后移动使用“肩部相对髋部的深度倾斜 / 躯干长度”，避免直接使用 `pose_world_landmarks` 身体中心绝对 `z` 引起方向抖动。
+  - 左右和前后同时达到阈值时只保留更强方向；身体复位进入死区后立即停止输出，减少移动拖尾。
+
+- `Assets/Scenes/Level2/PoseStarterAssetsInputAdapter.cs`
+  - 把姿态移动结果写入 `StarterAssetsInputs.MoveInput(Vector2)`。
+  - 保留现有第三人称控制器、CharacterController 和移动动画逻辑。
+
+- `Assets/Scenes/Level2/PoseSocialActionRecognizer.cs`
+  - 在 Unity 侧识别 `RaiseHand`、`WaveInvite`、`WaitInZone`。
+  - 支持面对面镜像规则：儿童右手对应角色左手，儿童左手对应角色右手。
+
+该组脚本的当前设计边界是：姿态移动只生成输入，不直接移动角色；社交动作只生成意图和手侧信息，后续再接入 NPC 反馈、任务状态或角色动画。
+
+## 9. 已有提示特效基础
 
 当前项目中已经有提示类 Shader 动画控制思路，相关文件包括：
 
@@ -148,7 +180,7 @@ Lumina 是一个基于 Unity 的社交互动游戏原型，目标对象是孤独
 - 哪个空位需要排队。
 - 当前目标在哪里。
 
-## 9. 当前已形成的稳定约束
+## 10. 当前已形成的稳定约束
 
 - 打开选项 UI 时，鼠标应该可见并解锁。
 - 关闭选项 UI 后，玩家应回到 3D 操作模式，鼠标状态和玩家控制要恢复。
@@ -157,8 +189,10 @@ Lumina 是一个基于 Unity 的社交互动游戏原型，目标对象是孤独
 - NPC 动画结束后，默认应恢复触发前的朝向和位置。
 - 简单 NPC 反馈优先使用可配置动画结果，复杂演出再使用 Timeline。
 - MediaPipe 提供的是身体关键点，不等于游戏行为；游戏语义应和底层姿态数据分层。
+- 姿态移动不直接改玩家位置，而是通过 `StarterAssetsInputs` 接入现有第三人称控制系统。
+- 姿态社交动作需要考虑面对面镜像，避免儿童手侧和角色表现手侧混淆。
 
-## 10. 文档分工
+## 11. 文档分工
 
 - `README.md`：项目简介、快速使用、主要模块入口。
 - `PROJECT_CONTEXT.md`：项目情况预览，记录当前已有结构和已实现内容。

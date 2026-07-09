@@ -35,6 +35,7 @@ public class PipeServer : MonoBehaviour
     private ServerUDP server;
 
     private Body body;
+    private long lastPoseReceivedUtcTicks;
 
     // these virtual transforms are not actually provided by mediapipe pose, but are required for avatars.
     // so I just manually compute them
@@ -54,6 +55,23 @@ public class PipeServer : MonoBehaviour
         return virtualHip;
     }
 
+    /// <summary>
+    /// 最近是否收到过有效姿态数据。
+    /// UDP 接收运行在后台线程，不能在该线程读取 Unity 的 Time，
+    /// 因此用 UTC ticks 记录最后一包数据的时间，再在主线程判断是否超时。
+    /// </summary>
+    public bool HasFreshPoseData(float timeoutSeconds)
+    {
+        long receivedTicks = Interlocked.Read(ref lastPoseReceivedUtcTicks);
+        if (receivedTicks == 0)
+        {
+            return false;
+        }
+
+        double elapsedSeconds = (System.DateTime.UtcNow.Ticks - receivedTicks) / (double)System.TimeSpan.TicksPerSecond;
+        return elapsedSeconds <= timeoutSeconds;
+    }
+
     private void Start()
     {
         System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
@@ -70,7 +88,7 @@ public class PipeServer : MonoBehaviour
         UpdateBody(body);
     }
 
-    private void UpdateBody(Body b)//ÿ��Unity��Ⱦִ֡��һ��
+    private void UpdateBody(Body b)//每个Unity渲染帧执行一次
     {
         StringBuilder landmarkLog = logLandmarkTargets ? new StringBuilder(2048) : null;
         for (int i = 0; i < LANDMARK_COUNT; ++i)
@@ -104,7 +122,7 @@ public class PipeServer : MonoBehaviour
             landmarkLog.Append("Printed at: ")
                 .Append(System.DateTime.Now.ToString("HH:mm:ss.fffffff",
                     System.Globalization.CultureInfo.InvariantCulture));
-            Debug.Log(landmarkLog.ToString());
+            //Debug.Log(landmarkLog.ToString());
         }
 
         Vector3 offset = Vector3.zero;
@@ -124,7 +142,7 @@ public class PipeServer : MonoBehaviour
         bodyParent.gameObject.SetActive(visible);
     }
 
-    private void Run()//����Ϣ����ȡ�����ݲ�������positionsBuffer
+    private void Run()//从消息队列取出数据并解析到positionsBuffer
     {
         System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 
@@ -179,6 +197,7 @@ public class PipeServer : MonoBehaviour
                     h.positionsBuffer[i].value += new Vector3(float.Parse(s[1]), float.Parse(s[2]), float.Parse(s[3]));
                     h.positionsBuffer[i].accumulatedValuesCount += 1;
                     h.active = true;
+                    Interlocked.Exchange(ref lastPoseReceivedUtcTicks, System.DateTime.UtcNow.Ticks);
 
 
                 }

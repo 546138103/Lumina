@@ -1,19 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.Events;
-
-public enum SocialIntent
-{
-    None,
-    RaiseHand,
-    WaveInvite,
-    WaitInZone,
-    FaceAndAttend,
-    RequestObject
-}
-
-[Serializable]
-public class SocialIntentUnityEvent : UnityEvent<SocialIntent> { }
 
 public class PoseActionRecognizer : MonoBehaviour
 {

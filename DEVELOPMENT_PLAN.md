@@ -64,6 +64,27 @@ Python MediaPipe
   - `RequestObject`：预留给后续具体场景细化。
 - 当前脚本先通过 `Debug.Log` 和 UnityEvent 输出识别结果，后续再接入 NPC 反馈或任务状态。
 
+### 2.6 Level2 姿态移动与社交控制脚本
+
+- 已按当前 Level2 场景方向，在 `Assets/Scenes/Level2` 新增姿态控制脚本。
+- 新增 `PoseControlMode.cs`，定义姿态控制模式：
+  - `Movement`：身体重心偏移控制移动。
+  - `SocialInteraction`：停止写入姿态移动，识别社交动作。
+  - `Disabled`：关闭姿态控制。
+- 新增 `PoseSocialIntentTypes.cs`，集中定义 `SocialIntent` 和基础 UnityEvent 类型，供 Level2 新脚本和旧测试脚本共用。
+- 新增 `PoseControlModeManager.cs`，用于在移动模式和社交模式之间切换，当前提供 `Tab` 调试切换和公开方法供后续触发器调用。
+- 新增 `PoseMovementInput.cs`，读取 `PipeServer` 的肩部与髋部中心，计算相对中立姿态并转换为二维移动输入。
+- 已根据 Level2 实测调整 `PoseMovementInput.cs`：
+  - 姿态移动改为点击鼠标左键完成中立姿态校准，校准前不允许移动。
+  - 左右移动保持与摄像头画面方向一致，社交动作继续使用面对面手侧镜像。
+  - 前后移动不再使用身体中心绝对 `z`，改用肩部相对髋部的归一化深度倾斜。
+  - 左右与前后冲突时只保留更强方向，身体回到死区后立即清零输入。
+  - 已通过 C# 编译检查，仍需在摄像头 Play Mode 中验证前后方向和阈值。
+- 新增 `PoseStarterAssetsInputAdapter.cs`，把姿态移动输入写入 `StarterAssetsInputs.MoveInput(Vector2)`，继续复用现有第三人称控制器和 CharacterController。
+- 新增 `PoseSocialActionRecognizer.cs`，在 Unity 侧识别 `RaiseHand`、`WaveInvite`、`WaitInZone`。
+- 社交动作已加入面对面镜像规则：儿童举右手时，角色表现目标为左手；儿童举左手时，角色表现目标为右手。
+- 当前 `Assets/Scenes/Level2/Level2.unity` 已挂载姿态控制组件，后续重点是继续进行摄像头 Play Mode 验证和阈值调整。
+
 ## 3. 下一步计划
 
 ### 3.1 稳定 NPC 互动样板场景
@@ -78,7 +99,21 @@ Python MediaPipe
 4. 检查 NPC 动画反馈结束后是否恢复位置和朝向。
 5. 为样板场景整理最少一套“邀请同伴一起玩”的完整流程。
 
-### 3.2 建立 SocialIntent 中间层
+### 3.2 接入 Level2 姿态控制脚本
+
+目标是在 `Assets/Scenes/Level2/Level2.unity` 中把新增脚本接入当前场景对象，形成“移动模式 / 社交模式”可切换的测试闭环。
+
+计划事项：
+
+1. 在 Level2 场景中建立或选择一个姿态控制对象，挂载 `PoseControlModeManager`、`PoseMovementInput`、`PoseStarterAssetsInputAdapter`、`PoseSocialActionRecognizer`。
+2. 确认 `PoseMovementInput` 能找到 `PipeServer`，并且 `PoseStarterAssetsInputAdapter` 能找到玩家的 `StarterAssetsInputs`。
+3. 在 `Movement` 模式下测试身体重心偏移是否能驱动角色移动。
+4. 在 `SocialInteraction` 模式下测试 `RaiseHand`、`WaveInvite`、`WaitInZone` 是否触发日志和 UnityEvent。
+5. 检查模式切换时移动输入是否释放上一帧姿态残留，但切回 `Movement` 后仍能继续移动。
+6. 根据实测结果调整代码常量，例如死区、满输入偏移、挥手幅度、举手保持时间和等待时间。
+7. 重点复测姿态移动：左右复位是否立即停止、前倾是否稳定前进、后倾是否稳定后退，以及单轴优先是否消除意外斜向移动。
+
+### 3.3 建立 SocialIntent 中间层
 
 目标是让 Unity 游戏逻辑不直接依赖原始人体关键点，而是使用更清楚的社交语义。
 
@@ -90,7 +125,7 @@ Python MediaPipe
 - `FaceAndAttend`：面向 NPC 并停留，表示关注或倾听。
 - `RequestObject`：双手靠近胸前或指向物品，表示想要某个物品。
 
-### 3.3 在 Unity 端做动作规则识别
+### 3.4 在 Unity 端做动作规则识别
 
 目标是在 Unity 中把 MediaPipe 关键点转换成动作结果。初期先用规则判断，不急着训练模型。基础脚本已经放在 `Assets/Test/PoseActionRecognizer.cs`，下一步是挂入 `Assets/Test/MediaPipe.unity` 场景并进行 Play Mode 验证。
 
@@ -121,7 +156,7 @@ Unity 端识别后再生成社交意图，例如：
 }
 ```
 
-### 3.4 接入 Unity 侧反馈
+### 3.5 接入 Unity 侧反馈
 
 目标是让 `SocialIntent` 能驱动实际游戏反馈。
 
@@ -133,7 +168,7 @@ Unity 端识别后再生成社交意图，例如：
 4. 再将意图接入 NPC 互动系统，例如挥手触发欢迎动画，举手触发表达需求对话。
 5. 避免在多个 Unity 脚本里重复写姿态判断逻辑，动作规则集中放在一个识别层。
 
-### 3.5 设计 ASD 社交练习场景
+### 3.6 设计 ASD 社交练习场景
 
 目标是把技术能力转成面向孤独症谱系障碍儿童的社交练习任务。
 
@@ -184,3 +219,9 @@ Kinect 后期停产可以作为风险提醒：体感交互如果存在高延迟�
 - 将已完成计划项和下一步计划集中整理到本文档。
 - 保留 Kinect Game 参考链接，并将 Kinect 的停产与体验问题作为 Lumina 姿态交互的风险提示。
 - 新增 `Assets/Test/PoseActionRecognizer.cs`，开始在 Unity 侧构建动作识别。
+- 新增 `Assets/Scenes/Level2` 下的姿态移动和社交控制脚本，并将 `SocialIntent` 类型整理为共享定义，开始把 Level2 场景作为姿态移动与社交动作控制的主要接入点。
+
+### 2026-07-09
+
+- 完成 Level2 姿态移动首轮稳定性修正：手动校准、左右画面同向、前后躯干倾斜识别、单轴优先和复位立即停止。
+- 已完成 C# 编译验证；前后方向与灵敏度等待摄像头 Play Mode 实测确认。
