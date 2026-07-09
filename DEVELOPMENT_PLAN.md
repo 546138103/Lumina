@@ -93,6 +93,12 @@ Python MediaPipe
 - 已接入 `Hand Raising.anim` 和 `Waving.anim`；举手识别实现保留，但 `DetectRaiseHand` 当前默认关闭。
 - 已在 `DropZone_1 (2)` 检测区域接入社交模式触发脚本。
 - 已加入 Level2 场景安装器，可通过 `Lumina/Level2/Install Pose Social Control` 幂等补齐组件和动画引用。
+- 已将 Python 摄像头检测预览接入 Unity 游戏界面：
+  - OpenCV 独立窗口默认关闭。
+  - 人体关键点继续通过 UDP `52733` 发送。
+  - 骨架预览通过独立 TCP `52734` 发送，避免影响动作识别。
+  - Unity 右上角使用 `RawImage` 显示预览，`Shift+V` 控制显隐。
+  - 预览默认限制为 `480×360`、约 12 FPS、JPEG 质量 70，并且只保留最新帧。
 
 ## 3. 下一步计划
 
@@ -125,6 +131,8 @@ Python MediaPipe
 9. 在预制动画模式下验证 `Waving.anim`，并临时开启举手检测验证 `Hand Raising.anim` 后再恢复关闭。
 10. 在 MediaPipe 模式下验证双臂镜像、平滑度、校准后骨骼跳变和返回移动模式后的 Animator 恢复。
 11. 将任务完成事件连接到 `PoseSocialModeTrigger.CompleteSocialTask()`，形成自动返回移动模式的闭环。
+12. 在实际摄像头 Play Mode 中验证 Unity 预览的位置、镜像方向、骨架显示、`Shift+V` 和断线自动隐藏。
+13. 重复进入/退出 Play Mode，检查 TCP `52734` 是否正常释放且不残留预览线程。
 
 ### 3.3 建立 SocialIntent 中间层
 
@@ -241,3 +249,5 @@ Kinect 后期停产可以作为风险提醒：体感交互如果存在高延迟�
 - 按确认流程实现三层控制：移动/社交状态、姿态/键盘移动来源、预制动画/MediaPipe 社交表现来源。
 - 新增两段式 T-Pose 校准、预制上半身动画播放、MediaPipe 镜像双臂驱动和检测区域社交模式入口。
 - 当前举手检测默认关闭，举手实现和 `Hand Raising.anim` 接入保留；下一步进行 Unity Play Mode 实测。
+- 关闭 Python OpenCV 独立窗口，并新增本机 TCP JPEG 预览通道和 Unity 右上角摄像头 UI。
+- 已通过 Python 语法检查、模拟 JPEG 协议测试和 Unity 脚本刷新检查；实际摄像头画面仍需 Play Mode 验证。

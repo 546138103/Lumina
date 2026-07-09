@@ -25,6 +25,7 @@ public sealed class PosePythonProcess : MonoBehaviour
     {
         if (Application.isPlaying && startAutomatically)
         {
+            EnsureCameraPreview();
             StartPython();
         }
     }
@@ -184,5 +185,27 @@ public sealed class PosePythonProcess : MonoBehaviour
     private static string Quote(string value)
     {
         return $"\"{value.Replace("\"", "\\\"")}\"";
+    }
+
+    private void EnsureCameraPreview()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        return;
+#else
+        PoseCameraPreviewReceiver receiver =
+            GetComponent<PoseCameraPreviewReceiver>();
+        if (receiver == null)
+        {
+            receiver = gameObject.AddComponent<PoseCameraPreviewReceiver>();
+        }
+
+        PoseCameraPreviewUI previewUI = GetComponent<PoseCameraPreviewUI>();
+        if (previewUI == null)
+        {
+            previewUI = gameObject.AddComponent<PoseCameraPreviewUI>();
+        }
+
+        previewUI.SetReceiver(receiver);
+#endif
     }
 }

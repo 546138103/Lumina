@@ -3,6 +3,7 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from clientUDP import ClientUDP
+from preview_client import PreviewClient
 
 import cv2
 import threading
@@ -55,6 +56,18 @@ class BodyThread(threading.Thread):
         mp_pose = mp.solutions.pose
 
         self.setup_comms()
+
+        preview_client = None
+        if global_vars.SEND_UNITY_PREVIEW:
+            preview_client = PreviewClient(
+                global_vars.PREVIEW_HOST,
+                global_vars.PREVIEW_PORT,
+                global_vars.PREVIEW_WIDTH,
+                global_vars.PREVIEW_HEIGHT,
+                global_vars.PREVIEW_JPEG_QUALITY,
+                global_vars.PREVIEW_FPS,
+            )
+            preview_client.start()
         
         capture = CaptureThread()
         capture.start()
@@ -66,7 +79,7 @@ class BodyThread(threading.Thread):
                 time.sleep(0.5)
             print("Beginning capture")
 
-            if global_vars.DEBUG:
+            if global_vars.SHOW_OPENCV_WINDOW:
                 # Keep the preview at the camera frame's native aspect ratio.
                 cv2.namedWindow('Body Tracking', cv2.WINDOW_AUTOSIZE)
                  
@@ -76,6 +89,10 @@ class BodyThread(threading.Thread):
                 # Fetch stuff from the capture thread
                 ret = capture.ret
                 image = capture.frame
+
+                if not ret or image is None:
+                    time.sleep(0.005)
+                    continue
                                 
                 # Image transformations and stuff
                 image = cv2.resize(
@@ -83,79 +100,52 @@ class BodyThread(threading.Thread):
                     (global_vars.PROCESS_WIDTH, global_vars.PROCESS_HEIGHT),
                     interpolation=cv2.INTER_AREA)
                 image = cv2.flip(image, 1)
-                image.flags.writeable = global_vars.DEBUG
+                image.flags.writeable = False
                 
                 # Detections
                 results = pose.process(image)
+                image.flags.writeable = True
                 tf = time.time()
                 
-                # Rendering results
+                # Diagnostic timing is independent from preview rendering.
                 if global_vars.DEBUG:
                     if time.time()-self.timeSincePostStatistics>=1:
                         print("Theoretical Maximum FPS: %f"%(1/(tf-ti)))
                         self.timeSincePostStatistics = time.time()
-                        
+
+                # Render one annotated frame for either Unity or the optional
+                # OpenCV window. The landmark transport remains independent.
+                should_render_preview = (
+                    global_vars.SEND_UNITY_PREVIEW
+                    or global_vars.SHOW_OPENCV_WINDOW
+                )
+                if should_render_preview:
+                    preview_image = image.copy()
+
                     if results.pose_landmarks:
-                        important_landmarks = {
-                            0: "Nose",
-
-                            # 1: "LeftEyeInner",
-                            # 2: "LeftEye",
-                            #3: "LeftEyeOuter",
-
-                            # 4: "RightEyeInner",
-                            # 5: "RightEye",
-                            #6: "RightEyeOuter",
-
-                            7: "LeftEar",
-                            8: "RightEar",
-
-                            9: "MouthLeft",
-                            10: "MouthRight",
-
-                            11: "LShoulder",
-                            12: "RShoulder",
-                            13: "LElbow",
-                            14: "RElbow",
-                            15: "LWrist",
-                            16: "RWrist",
-                            23: "LHip",
-                            24: "RHip",
-                            25: "LKnee",
-                            26: "RKnee",
-                            27: "LAnkle",
-                            28: "RAnkle",
-                        }
-                        height, width, _ = image.shape
-                        for index, landmark in enumerate(results.pose_landmarks.landmark):
-                            if index not in important_landmarks:
-                                continue
-
-                            pixel_x = int(landmark.x * width)
-                            pixel_y = int(landmark.y * height)
-
-                            text = (
-                                f"{index} {important_landmarks[index]} "
-                                f"({landmark.x:.2f},{landmark.y:.2f},{landmark.z:.2f})"
+                        if global_vars.DRAW_PREVIEW_LANDMARKS:
+                            mp_drawing.draw_landmarks(
+                                preview_image,
+                                results.pose_landmarks,
+                                mp_pose.POSE_CONNECTIONS,
+                                mp_drawing.DrawingSpec(
+                                    color=(255, 100, 0),
+                                    thickness=2,
+                                    circle_radius=4,
+                                ),
+                                mp_drawing.DrawingSpec(
+                                    color=(255, 255, 255),
+                                    thickness=2,
+                                    circle_radius=2,
+                                ),
                             )
 
-                            cv2.circle(image, (pixel_x, pixel_y), 5, (0, 255, 0), -1)
-                            cv2.putText(
-                                image,
-                                text,
-                                (pixel_x + 6, pixel_y - 6),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.35,
-                                (0, 0, 255),
-                                1,
-                                cv2.LINE_AA
-                            )
-                        mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS, 
-                                                mp_drawing.DrawingSpec(color=(255, 100, 0), thickness=2, circle_radius=4),
-                                                mp_drawing.DrawingSpec(color=(255, 255, 255), thickness=2, circle_radius=2),
-                                                )
-                    cv2.imshow('Body Tracking', image)
-                    cv2.waitKey(3)
+                    if preview_client is not None:
+                        preview_client.submit_frame(preview_image)
+
+                    if global_vars.SHOW_OPENCV_WINDOW:
+                        cv2.imshow('Body Tracking', preview_image)
+                        cv2.waitKey(3)
 
                 # Set up data for relay
                 self.data = ""
@@ -169,6 +159,9 @@ class BodyThread(threading.Thread):
                     
         if self.pipe is not None:
             self.pipe.close()
+        if preview_client is not None:
+            preview_client.stop()
+            preview_client.join(timeout=2.0)
         if capture.cap is not None:
             capture.cap.release()
         cv2.destroyAllWindows()

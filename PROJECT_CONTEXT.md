@@ -116,6 +116,30 @@ Lumina 是一个基于 Unity 的社交互动游戏原型，目标对象是孤独
 
 当前管线允许摄像头、MediaPipe 和 Unity 使用不同帧率。Unity 不需要等待 Python 每帧返回新数据，可以继续使用上一帧结果并通过平滑移动保持动作连续。
 
+当前摄像头预览也已经接入 Unity：
+
+```text
+Python 摄像头与 MediaPipe
+├-> UDP 52733：人体关键点
+└-> TCP 52734：JPEG 预览画面
+                    ↓
+              Unity RawImage
+```
+
+- `Tools/PosePython/preview_client.py`
+  - 在独立线程中压缩并发送最新预览帧，不堆积旧画面。
+  - 默认发送 `480×360`、约 12 FPS、JPEG 质量 70 的本机预览。
+
+- `Assets/Scenes/Level2/PoseCameraPreviewReceiver.cs`
+  - 后台线程接收 JPEG 字节，Unity 主线程负责更新 `Texture2D`。
+  - 预览连接断开后继续等待 Python 重连。
+
+- `Assets/Scenes/Level2/PoseCameraPreviewUI.cs`
+  - 在游戏界面右上角创建不拦截鼠标的 `RawImage` 预览。
+  - `Shift+V` 控制预览显示和隐藏，没有新画面时自动隐藏。
+
+Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水平镜像并绘制 MediaPipe 骨架，但不显示每个关键点的长坐标文字。图像只通过 `127.0.0.1` 在本机内存中传输，不写入磁盘。
+
 ## 7. 已有 Unity 侧动作识别测试脚本
 
 当前已在 `Assets/Test` 中加入 Unity 侧动作识别脚本：

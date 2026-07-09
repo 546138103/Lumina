@@ -1,8 +1,22 @@
 # Internally used, don't mind this.
 KILL_THREADS = False
 
-# Toggle this in order to view how your WebCam is being interpreted (reduces performance).
-DEBUG = True 
+# Diagnostic statistics in the Python console.
+DEBUG = True
+
+# The old OpenCV window is disabled because Unity now displays the preview.
+SHOW_OPENCV_WINDOW = False
+
+# Unity preview settings. The preview uses a separate TCP channel so a slow
+# image frame never blocks the landmark UDP stream.
+SEND_UNITY_PREVIEW = True
+DRAW_PREVIEW_LANDMARKS = True
+PREVIEW_HOST = '127.0.0.1'
+PREVIEW_PORT = 52734
+PREVIEW_WIDTH = 480
+PREVIEW_HEIGHT = 360
+PREVIEW_FPS = 12
+PREVIEW_JPEG_QUALITY = 70
 
 # Change UDP connection settings (must match Unity side)
 USE_LEGACY_PIPES = False # Only supported on Windows (if True, use NamedPipes rather than UDP sockets)

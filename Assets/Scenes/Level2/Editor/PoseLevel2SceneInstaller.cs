@@ -100,6 +100,17 @@ public static class PoseLevel2SceneInstaller
             SetObjectReference(trigger, "modeManager", modeManager);
         }
 
+        PosePythonProcess pythonProcess = Object.FindObjectOfType<PosePythonProcess>();
+        if (pythonProcess != null)
+        {
+            GameObject poseSystem = pythonProcess.gameObject;
+            PoseCameraPreviewReceiver previewReceiver =
+                GetOrAdd<PoseCameraPreviewReceiver>(poseSystem);
+            PoseCameraPreviewUI previewUI =
+                GetOrAdd<PoseCameraPreviewUI>(poseSystem);
+            SetObjectReference(previewUI, "receiver", previewReceiver);
+        }
+
         EditorSceneManager.MarkSceneDirty(scene);
         Debug.Log(
             "[PoseLevel2SceneInstaller] 已在当前 Level2 场景补齐姿态/社交控制组件。请保存场景。",
