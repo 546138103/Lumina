@@ -9,10 +9,11 @@ public class PoseControlModeManager : MonoBehaviour
 {
     private const PoseControlMode InitialMode = PoseControlMode.Movement;
 
-    // 调试快捷键。需要在 Play Mode 中手动切换“移动/社交”时改这里。
+    // 调试快捷键：Shift+N 切换“移动/社交”。
+    // 加 Shift，避免单独按字母键时误切换游戏状态。
     // 关掉后，外部脚本仍然可以调用 SetMovementMode / SetSocialInteractionMode。
     private const bool EnableDebugModeToggleKey = true;
-    private const KeyCode DebugModeToggleKey = KeyCode.Tab;
+    private const KeyCode DebugModeToggleKey = KeyCode.N;
 
     // 切换到社交模式时是否广播事件。保持 true，方便以后接 UI/NPC 提示。
     private const bool InvokeModeChangedEvent = true;
@@ -29,7 +30,9 @@ public class PoseControlModeManager : MonoBehaviour
 
     private void Update()
     {
-        if (EnableDebugModeToggleKey && Input.GetKeyDown(DebugModeToggleKey))
+        if (EnableDebugModeToggleKey &&
+            IsShiftHeld() &&
+            Input.GetKeyDown(DebugModeToggleKey))
         {
             ToggleMovementAndSocial();
         }
@@ -65,6 +68,7 @@ public class PoseControlModeManager : MonoBehaviour
         }
 
         CurrentMode = mode;
+        Debug.Log($"[PoseControlMode] 当前模式：{CurrentMode}", this);
 
         if (!InvokeModeChangedEvent)
         {
@@ -73,5 +77,10 @@ public class PoseControlModeManager : MonoBehaviour
 
         ModeChanged?.Invoke(CurrentMode);
         onModeChanged?.Invoke(CurrentMode);
+    }
+
+    private bool IsShiftHeld()
+    {
+        return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
     }
 }

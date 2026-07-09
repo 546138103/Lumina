@@ -12,10 +12,10 @@ public class PoseSocialActionRecognizer : MonoBehaviour
     private const bool LogDetectedIntent = true;
 
     // 同一个动作的冷却时间，避免一次动作连续刷屏或重复触发 NPC 反馈。
-    private const float SameIntentCooldown = 0.8f;
+    private const float SameIntentCooldown = 2f;
 
     // 举手检测开关。第一版先启用 RaiseHand / WaveInvite / WaitInZone。
-    private const bool DetectRaiseHand = true;
+    private const bool DetectRaiseHand = false;
 
     // 举手高度余量。公式：wrist.y > shoulder.y + RaiseHandVerticalMargin。
     // 调小：更容易识别举手；调大：必须举得更高才识别。
@@ -33,7 +33,7 @@ public class PoseSocialActionRecognizer : MonoBehaviour
 
     // 方向反转次数。1 表示左->右或右->左即可触发，适合儿童动作幅度较小的测试。
     // 如果误触发太多，优先改成 2。
-    private const int WaveRequiredDirectionChanges = 1;
+    private const int WaveRequiredDirectionChanges = 2;
 
     // 挥手时间窗。调大能容纳慢挥手；调小要求动作更快。
     private const float WaveWindowSeconds = 1.8f;
@@ -93,14 +93,17 @@ public class PoseSocialActionRecognizer : MonoBehaviour
             return;
         }
 
-        if (DetectRaiseHand)
-        {
-            TickRaiseHand();
-        }
-
+        // 挥手本身包含“手在肩部以上”，因此先判定挥手。
+        // 同一帧识别到挥手后不再触发举手，避免两个意图重复输出。
+        bool waveDetected = false;
         if (DetectWaveInvite)
         {
-            TickWaveInvite();
+            waveDetected = TickWaveInvite();
+        }
+
+        if (DetectRaiseHand && !waveDetected)
+        {
+            TickRaiseHand();
         }
 
         if (DetectWaitInZone)
@@ -144,7 +147,7 @@ public class PoseSocialActionRecognizer : MonoBehaviour
         rightRaiseTimer = 0f;
     }
 
-    private void TickWaveInvite()
+    private bool TickWaveInvite()
     {
         // WaveInvite 检测入口：
         // 1. 先要求手腕在肩膀附近或肩膀上方，避免自然垂手摆动误触发。
@@ -158,12 +161,16 @@ public class PoseSocialActionRecognizer : MonoBehaviour
         if (TickWaveHand(leftWave, Landmark.LEFT_WRIST, Landmark.LEFT_SHOULDER, leftReady))
         {
             EmitIntent(SocialIntent.WaveInvite, ChildHandSide.Left, 1f);
+            return true;
         }
 
         if (TickWaveHand(rightWave, Landmark.RIGHT_WRIST, Landmark.RIGHT_SHOULDER, rightReady))
         {
             EmitIntent(SocialIntent.WaveInvite, ChildHandSide.Right, 1f);
+            return true;
         }
+
+        return false;
     }
 
     private bool TickWaveHand(HandWaveState state, Landmark wristMark, Landmark shoulderMark, bool handReady)

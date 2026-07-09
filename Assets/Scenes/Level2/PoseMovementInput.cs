@@ -5,10 +5,6 @@ public class PoseMovementInput : MonoBehaviour
     private const bool AutoFindPipeServer = true;
     private const bool AutoFindModeManager = true;
 
-    // 鼠标按键编号：0=左键，1=右键，2=中键。
-    // 只有在 Movement 模式、姿态数据稳定后按下该键，才会记录中立姿态并启用移动。
-    private const int CalibrationMouseButton = 0;
-
     // 左右移动死区，单位是 Unity 世界坐标距离。
     // 调大：小幅晃动不会移动，稳定但不灵敏；调小：更灵敏，但站立抖动也可能触发移动。
     private const float HorizontalOffsetDeadZone = 0.08f;
@@ -55,7 +51,6 @@ public class PoseMovementInput : MonoBehaviour
     private Vector3 neutralBodyCenter;
     private float neutralForwardLean;
     private float poseDataReadyTime = -1f;
-    private bool calibrationRequested;
 
     private void Awake()
     {
@@ -73,14 +68,6 @@ public class PoseMovementInput : MonoBehaviour
     private void Update()
     {
         bool isMovementMode = modeManager == null || modeManager.CurrentMode == PoseControlMode.Movement;
-
-        // 即使 Python 仍在启动或关键点还在平滑，也先记住这次点击。
-        // 这样玩家不必猜测“数据稳定的那一秒”之后再精确点击一次。
-        if (isMovementMode && Input.GetMouseButtonDown(CalibrationMouseButton))
-        {
-            calibrationRequested = true;
-            Debug.Log("[PoseMovementInput] 已收到左键校准请求，等待姿态数据稳定。", this);
-        }
 
         if (pipeServer == null ||
             pipeServer.GetVirtualHip() == null ||
@@ -108,14 +95,8 @@ public class PoseMovementInput : MonoBehaviour
             return;
         }
 
-        if (calibrationRequested)
-        {
-            CalibrateNeutralPose();
-            calibrationRequested = false;
-            Debug.Log("[PoseMovementInput] 姿态移动校准完成，已启用姿态控制。", this);
-        }
-
-        // 手动校准是姿态移动的启用门槛。未校准时无论身体如何移动，都只输出零。
+        // 两段式校准由 PoseCalibrationCoordinator 统一触发。
+        // 未校准时无论身体如何移动，都只输出零。
         if (!HasNeutralPose)
         {
             CurrentMoveInput = Vector2.zero;
@@ -128,9 +109,7 @@ public class PoseMovementInput : MonoBehaviour
 
     public void CalibrateNeutralPose()
     {
-        if (pipeServer == null ||
-            pipeServer.GetVirtualHip() == null ||
-            pipeServer.GetVirtualNeck() == null)
+        if (!CanCalibrateNeutralPose)
         {
             return;
         }
@@ -142,6 +121,14 @@ public class PoseMovementInput : MonoBehaviour
         CurrentMoveInput = Vector2.zero;
         HasNeutralPose = true;
     }
+
+    public bool CanCalibrateNeutralPose =>
+        pipeServer != null &&
+        pipeServer.GetVirtualHip() != null &&
+        pipeServer.GetVirtualNeck() != null &&
+        pipeServer.HasFreshPoseData(PoseDataTimeoutSeconds) &&
+        poseDataReadyTime >= 0f &&
+        Time.unscaledTime - poseDataReadyTime >= InitialPoseWarmupSeconds;
 
     public void ClearNeutralPose()
     {

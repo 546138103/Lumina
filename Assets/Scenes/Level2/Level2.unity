@@ -4540,6 +4540,26 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1921493572}
+    - targetCorrespondingSourceObject: {fileID: 7210976913154118756, guid: fc7850e07132fb8439ef06f00afbd1b4,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1921493577}
+    - targetCorrespondingSourceObject: {fileID: 7210976913154118756, guid: fc7850e07132fb8439ef06f00afbd1b4,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1921493578}
+    - targetCorrespondingSourceObject: {fileID: 7210976913154118756, guid: fc7850e07132fb8439ef06f00afbd1b4,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1921493579}
+    - targetCorrespondingSourceObject: {fileID: 7210976913154118756, guid: fc7850e07132fb8439ef06f00afbd1b4,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1921493580}
+    - targetCorrespondingSourceObject: {fileID: 7210976913154118756, guid: fc7850e07132fb8439ef06f00afbd1b4,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1921493581}
     - targetCorrespondingSourceObject: {fileID: 7010876827319995142, guid: fc7850e07132fb8439ef06f00afbd1b4,
         type: 3}
       insertIndex: -1
@@ -7205,6 +7225,7 @@ GameObject:
   - component: {fileID: 651818008}
   - component: {fileID: 651818010}
   - component: {fileID: 651818009}
+  - component: {fileID: 651818011}
   m_Layer: 0
   m_Name: DropZone_1 (2)
   m_TagString: Untagged
@@ -7265,6 +7286,19 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.35
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &651818011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 651818007}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f1a2b3c4d5e67890abcdeffedcba106, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  modeManager: {fileID: 1921493575}
 --- !u!1 &666991115 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2172383983142812007, guid: 55188b7a5165b8d4cac649bda6c737ce,
@@ -17527,6 +17561,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetInputs: {fileID: 1102600977}
   modeManager: {fileID: 1921493575}
+  movementSourceManager: {fileID: 1921493577}
 --- !u!114 &1921493573
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17581,6 +17616,84 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 291285234}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1921493577
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921493569}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f1a2b3c4d5e67890abcdeffedcba101, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  modeManager: {fileID: 1921493575}
+  poseMovementInput: {fileID: 1921493574}
+--- !u!114 &1921493578
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921493569}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f1a2b3c4d5e67890abcdeffedcba102, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetAnimator: {fileID: 0}
+  handRaisingClip: {fileID: 7400000, guid: 366c4b4c38d28914c9d73f93ee18d383, type: 2}
+  wavingClip: {fileID: 7400000, guid: cd7c30d112b9d8d468faa3450b1ab395, type: 2}
+--- !u!114 &1921493579
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921493569}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f1a2b3c4d5e67890abcdeffedcba103, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  pipeServer: {fileID: 2101679440}
+  targetAnimator: {fileID: 0}
+--- !u!114 &1921493580
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921493569}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f1a2b3c4d5e67890abcdeffedcba104, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  modeManager: {fileID: 1921493575}
+  actionRecognizer: {fileID: 1921493573}
+  presetAnimator: {fileID: 1921493578}
+  mediaPipeArmDriver: {fileID: 1921493579}
+--- !u!114 &1921493581
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921493569}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f1a2b3c4d5e67890abcdeffedcba105, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  modeManager: {fileID: 1921493575}
+  movementSourceManager: {fileID: 1921493577}
+  poseMovementInput: {fileID: 1921493574}
+  presentationController: {fileID: 1921493580}
+  mediaPipeArmDriver: {fileID: 1921493579}
+  presetAnimator: {fileID: 1921493578}
+  actionRecognizer: {fileID: 1921493573}
 --- !u!1001 &1974499705
 PrefabInstance:
   m_ObjectHideFlags: 0

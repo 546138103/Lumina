@@ -84,6 +84,15 @@ Python MediaPipe
 - 新增 `PoseSocialActionRecognizer.cs`，在 Unity 侧识别 `RaiseHand`、`WaveInvite`、`WaitInZone`。
 - 社交动作已加入面对面镜像规则：儿童举右手时，角色表现目标为左手；儿童举左手时，角色表现目标为右手。
 - 当前 `Assets/Scenes/Level2/Level2.unity` 已挂载姿态控制组件，后续重点是继续进行摄像头 Play Mode 验证和阈值调整。
+- 已实现姿态/键盘双移动来源，以及预制动画/MediaPipe 双社交表现来源：
+  - `Shift+M` 在姿态移动与键盘移动之间切换。
+  - `Shift+B` 在预制动画与 MediaPipe 双臂之间切换。
+  - `Shift+N` 在移动模式与社交模式之间切换。
+  - 姿态相关快捷键统一要求按住 Shift，避免与 WASD 冲突。
+- 已加入两段式 T-Pose 校准：第一次左键进入准备状态，第二次左键执行校准。
+- 已接入 `Hand Raising.anim` 和 `Waving.anim`；举手识别实现保留，但 `DetectRaiseHand` 当前默认关闭。
+- 已在 `DropZone_1 (2)` 检测区域接入社交模式触发脚本。
+- 已加入 Level2 场景安装器，可通过 `Lumina/Level2/Install Pose Social Control` 幂等补齐组件和动画引用。
 
 ## 3. 下一步计划
 
@@ -112,6 +121,10 @@ Python MediaPipe
 5. 检查模式切换时移动输入是否释放上一帧姿态残留，但切回 `Movement` 后仍能继续移动。
 6. 根据实测结果调整代码常量，例如死区、满输入偏移、挥手幅度、举手保持时间和等待时间。
 7. 重点复测姿态移动：左右复位是否立即停止、前倾是否稳定前进、后倾是否稳定后退，以及单轴优先是否消除意外斜向移动。
+8. 验证 `Shift+N`、`Shift+M`、`Shift+B` 三组调试快捷键以及两次左键 T-Pose 校准。
+9. 在预制动画模式下验证 `Waving.anim`，并临时开启举手检测验证 `Hand Raising.anim` 后再恢复关闭。
+10. 在 MediaPipe 模式下验证双臂镜像、平滑度、校准后骨骼跳变和返回移动模式后的 Animator 恢复。
+11. 将任务完成事件连接到 `PoseSocialModeTrigger.CompleteSocialTask()`，形成自动返回移动模式的闭环。
 
 ### 3.3 建立 SocialIntent 中间层
 
@@ -225,3 +238,6 @@ Kinect 后期停产可以作为风险提醒：体感交互如果存在高延迟�
 
 - 完成 Level2 姿态移动首轮稳定性修正：手动校准、左右画面同向、前后躯干倾斜识别、单轴优先和复位立即停止。
 - 已完成 C# 编译验证；前后方向与灵敏度等待摄像头 Play Mode 实测确认。
+- 按确认流程实现三层控制：移动/社交状态、姿态/键盘移动来源、预制动画/MediaPipe 社交表现来源。
+- 新增两段式 T-Pose 校准、预制上半身动画播放、MediaPipe 镜像双臂驱动和检测区域社交模式入口。
+- 当前举手检测默认关闭，举手实现和 `Hand Raising.anim` 接入保留；下一步进行 Unity Play Mode 实测。

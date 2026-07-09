@@ -5,6 +5,18 @@ public enum PoseControlMode
     SocialInteraction
 }
 
+public enum MovementInputSource
+{
+    Pose,
+    Keyboard
+}
+
+public enum SocialPresentationMode
+{
+    PresetAnimation,
+    MediaPipeArms
+}
+
 public enum ChildHandSide
 {
     None,

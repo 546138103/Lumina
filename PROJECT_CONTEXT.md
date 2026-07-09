@@ -162,7 +162,42 @@ Lumina 是一个基于 Unity 的社交互动游戏原型，目标对象是孤独
   - 在 Unity 侧识别 `RaiseHand`、`WaveInvite`、`WaitInZone`。
   - 支持面对面镜像规则：儿童右手对应角色左手，儿童左手对应角色右手。
 
-该组脚本的当前设计边界是：姿态移动只生成输入，不直接移动角色；社交动作只生成意图和手侧信息，后续再接入 NPC 反馈、任务状态或角色动画。
+当前还加入了移动来源、社交表现和统一校准控制：
+
+- `PoseMovementSourceManager.cs`
+  - 在移动模式下使用 `Shift+M` 切换姿态移动和键盘移动。
+  - 键盘模式下停止姿态脚本对 `StarterAssetsInputs` 的持续写入。
+
+- `PoseSocialPresentationController.cs`
+  - 在社交模式下使用 `Shift+B` 切换预制动画和 MediaPipe 双臂实时驱动。
+  - 预制动画按动作语义播放，不区分左右手；MediaPipe 模式继续执行面对面镜像。
+
+- `PosePresetSocialAnimator.cs`
+  - 使用 Playables 在运行时播放 `Hand Raising.anim` 和 `Waving.anim`。
+  - 使用上半身 AvatarMask，避免预制社交动作覆盖腿部和角色位置。
+
+- `PoseMediaPipeArmDriver.cs`
+  - MediaPipe 社交表现第一版只驱动角色左右上臂和前臂。
+  - 儿童右臂关键点映射到角色左臂，儿童左臂关键点映射到角色右臂。
+
+- `PoseCalibrationCoordinator.cs`
+  - 姿态移动和 MediaPipe 双臂共用两段式校准。
+  - 第一次点击左键暂停动作并进入 T-Pose；第二次点击左键记录校准数据并恢复控制。
+
+- `PoseSocialModeTrigger.cs`
+  - 支持进入检测区域后切换到社交模式，并提供任务完成后返回移动模式的公开方法。
+
+- `Editor/PoseLevel2SceneInstaller.cs`
+  - 在当前打开的 Level2 场景中幂等补齐主角组件、动画引用和检测区域触发器。
+  - 用于保留 Unity 编辑器内尚未保存的场景修改，避免外部场景接线被后续保存覆盖。
+
+当前调试快捷键统一要求按住 Shift：
+
+- `Shift+N`：移动模式 / 社交模式。
+- `Shift+M`：姿态移动 / 键盘移动。
+- `Shift+B`：预制动画 / MediaPipe 双臂。
+
+该组脚本的当前设计边界是：姿态移动只生成输入，不直接移动角色；社交识别生成意图和手侧信息，角色表现层消费这些结果，NPC 反馈和任务状态仍由后续场景逻辑接入。
 
 ## 9. 已有提示特效基础
 

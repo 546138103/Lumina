@@ -6,6 +6,7 @@ public class PoseStarterAssetsInputAdapter : MonoBehaviour
 {
     private const bool AutoFindTargetInputs = true;
     private const bool AutoFindModeManager = true;
+    private const bool AutoFindMovementSourceManager = true;
 
     // 姿态移动是否接管 StarterAssetsInputs.move。
     // 如果想临时回到键鼠/手柄输入，把这里改 false。
@@ -18,6 +19,7 @@ public class PoseStarterAssetsInputAdapter : MonoBehaviour
     [Header("Targets")]
     [SerializeField] private StarterAssetsInputs targetInputs;
     [SerializeField] private PoseControlModeManager modeManager;
+    [SerializeField] private PoseMovementSourceManager movementSourceManager;
 
     private PoseMovementInput movementInput;
     private bool wasWritingPoseMove;
@@ -35,6 +37,11 @@ public class PoseStarterAssetsInputAdapter : MonoBehaviour
         {
             modeManager = FindObjectOfType<PoseControlModeManager>();
         }
+
+        if (movementSourceManager == null && AutoFindMovementSourceManager)
+        {
+            movementSourceManager = FindObjectOfType<PoseMovementSourceManager>();
+        }
     }
 
     private void Update()
@@ -44,7 +51,10 @@ public class PoseStarterAssetsInputAdapter : MonoBehaviour
             return;
         }
 
-        bool canWriteMovement = modeManager == null || modeManager.CurrentMode == PoseControlMode.Movement;
+        bool isMovementMode = modeManager == null || modeManager.CurrentMode == PoseControlMode.Movement;
+        bool poseSourceSelected = movementSourceManager == null ||
+            movementSourceManager.CurrentSource == MovementInputSource.Pose;
+        bool canWriteMovement = isMovementMode && poseSourceSelected;
         if (!canWriteMovement)
         {
             if (ReleasePoseInputWhenLeavingMovement && wasWritingPoseMove)
