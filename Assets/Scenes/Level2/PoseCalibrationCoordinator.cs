@@ -4,7 +4,7 @@ using UnityEngine;
 public class PoseCalibrationCoordinator : MonoBehaviour
 {
     private const int CalibrationMouseButton = 0;
-    private const float MinimumSecondClickDelay = 0.20f;
+    private const float DoubleClickMaxInterval = 0.30f;
 
     [SerializeField] private PoseControlModeManager modeManager;
     [SerializeField] private PoseMovementSourceManager movementSourceManager;
@@ -17,7 +17,7 @@ public class PoseCalibrationCoordinator : MonoBehaviour
     public bool IsCalibrating => calibrationTarget != CalibrationTarget.None;
 
     private CalibrationTarget calibrationTarget;
-    private float calibrationStartTime;
+    private float lastClickTime = float.NegativeInfinity;
     private Animator targetAnimator;
     private HumanPoseHandler humanPoseHandler;
     private HumanPose tPose;
@@ -33,7 +33,7 @@ public class PoseCalibrationCoordinator : MonoBehaviour
     {
         if (!IsCalibrating)
         {
-            if (Input.GetMouseButtonDown(CalibrationMouseButton))
+            if (ConsumeDoubleClick())
             {
                 TryBeginCalibration();
             }
@@ -47,11 +47,23 @@ public class PoseCalibrationCoordinator : MonoBehaviour
             return;
         }
 
-        if (Input.GetMouseButtonDown(CalibrationMouseButton) &&
-            Time.unscaledTime - calibrationStartTime >= MinimumSecondClickDelay)
+        if (ConsumeDoubleClick())
         {
             TryCompleteCalibration();
         }
+    }
+
+    private bool ConsumeDoubleClick()
+    {
+        if (!Input.GetMouseButtonDown(CalibrationMouseButton))
+        {
+            return false;
+        }
+
+        float now = Time.unscaledTime;
+        bool isDoubleClick = now - lastClickTime <= DoubleClickMaxInterval;
+        lastClickTime = isDoubleClick ? float.NegativeInfinity : now;
+        return isDoubleClick;
     }
 
     private void LateUpdate()
@@ -93,7 +105,6 @@ public class PoseCalibrationCoordinator : MonoBehaviour
         }
 
         calibrationTarget = target;
-        calibrationStartTime = Time.unscaledTime;
 
         if (calibrationTarget == CalibrationTarget.MovementPose)
         {
@@ -116,7 +127,7 @@ public class PoseCalibrationCoordinator : MonoBehaviour
 
         EnterTPose();
         Debug.Log(
-            "[PoseCalibration] 已进入 T-Pose 校准准备。请保持 T-Pose，再点击一次鼠标左键执行校准。",
+            "[PoseCalibration] 已进入 T-Pose 校准准备。请保持 T-Pose，再双击鼠标左键执行校准。",
             this);
     }
 
@@ -144,7 +155,7 @@ public class PoseCalibrationCoordinator : MonoBehaviour
         if (!success)
         {
             Debug.LogWarning(
-                "[PoseCalibration] 姿态数据尚未稳定，请保持 T-Pose 后再次点击鼠标左键。",
+                "[PoseCalibration] 姿态数据尚未稳定，请保持 T-Pose 后再次双击鼠标左键。",
                 this);
             return;
         }

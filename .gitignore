@@ -10,6 +10,7 @@
 
 # AI
 *.claude
+skills-lock.json
 
 # Visual Studio / Rider / Cursor / VSCode
 .vs/
