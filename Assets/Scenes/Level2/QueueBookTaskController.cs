@@ -32,6 +32,9 @@ public class QueueBookTaskController : MonoBehaviour
     // 进入大任务区播放引导语音的冷却时间，防止在边界反复进出时连续重播。
     private const float TaskAreaEntryVoiceCooldownSeconds = 3f;
 
+    // 玩家不在正确位置、但仍在大任务区内持续多久后触发一次“卡关”提醒；与站错位置的 2 秒判定相互独立。
+    private const float IdleGuidanceIntervalSeconds = 20f;
+
     private const bool LogTaskTransitions = true;
 
     [Header("正确排队位置（可选）")]
@@ -44,6 +47,7 @@ public class QueueBookTaskController : MonoBehaviour
     public QueueBookTaskFloatUnityEvent onWaitProgress = new QueueBookTaskFloatUnityEvent();
     public QueueBookTaskZoneUnityEvent onTaskCompleted = new QueueBookTaskZoneUnityEvent();
     public QueueBookTaskZoneUnityEvent onPositionNeedsGuidance = new QueueBookTaskZoneUnityEvent();
+    public UnityEvent onIdleNeedsGuidance = new UnityEvent();
     public UnityEvent onTaskAbandoned = new UnityEvent();
 
     public event Action TaskAreaEntered;
@@ -52,6 +56,7 @@ public class QueueBookTaskController : MonoBehaviour
     public event Action<float> WaitProgress;
     public event Action<QueueBookTaskZone> TaskCompleted;
     public event Action<QueueBookTaskZone> PositionNeedsGuidance;
+    public event Action IdleNeedsGuidance;
     public event Action TaskAbandoned;
 
     public QueueBookTaskState CurrentState { get; private set; } = QueueBookTaskState.Inactive;
@@ -63,7 +68,9 @@ public class QueueBookTaskController : MonoBehaviour
     private StarterAssetsInputs activePlayer;
     private float activationTimer;
     private float waitTimer;
+    private float idleTimer;
     private float lastTaskAreaEntryVoiceTime = -Mathf.Infinity;
+    private QueueBookTaskZone zonePendingReentry;
 
     private void Update()
     {
@@ -83,6 +90,8 @@ public class QueueBookTaskController : MonoBehaviour
             TickTaskActivation();
             return;
         }
+
+        TickIdleGuidance();
 
         if (CurrentState == QueueBookTaskState.Active)
         {
@@ -161,6 +170,11 @@ public class QueueBookTaskController : MonoBehaviour
                 CancelCurrentWait();
             }
 
+            if (zone == zonePendingReentry)
+            {
+                zonePendingReentry = null;
+            }
+
             return;
         }
 
@@ -206,6 +220,27 @@ public class QueueBookTaskController : MonoBehaviour
         lastTaskAreaEntryVoiceTime = now;
         TaskAreaEntered?.Invoke();
         onTaskAreaEntered?.Invoke();
+    }
+
+    // 与站错位置的 2 秒判定完全独立：只要玩家不在正确位置就持续累计，
+    // 不受“站错圈触发过引导”影响；进入正确位置立刻清零暂停；持续卡关会重复触发。
+    private void TickIdleGuidance()
+    {
+        if (correctPosition == null || CurrentQueuePosition == correctPosition)
+        {
+            idleTimer = 0f;
+            return;
+        }
+
+        idleTimer += Time.deltaTime;
+        if (idleTimer < IdleGuidanceIntervalSeconds)
+        {
+            return;
+        }
+
+        idleTimer = 0f;
+        IdleNeedsGuidance?.Invoke();
+        onIdleNeedsGuidance?.Invoke();
     }
 
     private void TickTaskActivation()
@@ -281,11 +316,13 @@ public class QueueBookTaskController : MonoBehaviour
         onTaskCompleted?.Invoke(CompletedQueuePosition);
     }
 
-    // 站错位置：不进入 Completed 终态，原地停留也会在下一次停留满 2 秒时再次触发本方法，
-    // 具体每次要播放的引导内容（安静/温和提示/高亮等）由订阅方自行决定。
+    // 站错位置：不进入 Completed 终态，但触发一次后这个位置会被标记为“待重新进入”，
+    // 原地不动不会重复计时；玩家离开这个位置后再次进入（同一个或另一个位置）才会重新计时。
+    // “孩子卡关很久没找到正确位置”这种情况改由独立的 TickIdleGuidance 负责，不由本方法处理。
     private void RaiseGuidanceForWrongPosition()
     {
         QueueBookTaskZone wrongPosition = CurrentQueuePosition;
+        zonePendingReentry = wrongPosition;
 
         ResetWaitProgress();
         CurrentQueuePosition = null;
@@ -309,6 +346,8 @@ public class QueueBookTaskController : MonoBehaviour
     private void ResetRuntimeState(bool dispatchResetMessage)
     {
         activationTimer = 0f;
+        idleTimer = 0f;
+        zonePendingReentry = null;
         CurrentQueuePosition = null;
         CompletedQueuePosition = null;
         ResetWaitProgress();
@@ -352,6 +391,7 @@ public class QueueBookTaskController : MonoBehaviour
             QueueBookTaskZone zone = registeredZones[i];
             if (zone != null &&
                 zone.Role == QueueBookTaskZoneRole.QueuePosition &&
+                zone != zonePendingReentry &&
                 zone.IsOccupiedBy(activePlayer))
             {
                 return zone;
