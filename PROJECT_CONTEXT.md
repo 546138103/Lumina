@@ -128,17 +128,25 @@ Python 摄像头与 MediaPipe
 
 - `Tools/PosePython/preview_client.py`
   - 在独立线程中压缩并发送最新预览帧，不堆积旧画面。
-  - 默认发送 `480×360`、约 12 FPS、JPEG 质量 70 的本机预览。
+  - 直接发送 MediaPipe 处理后的实际比例画面，约 12 FPS、JPEG 质量 70，不再二次缩放为固定尺寸。
 
 - `Assets/Scenes/Level2/PoseCameraPreviewReceiver.cs`
   - 后台线程接收 JPEG 字节，Unity 主线程负责更新 `Texture2D`。
   - 预览连接断开后继续等待 Python 重连。
 
 - `Assets/Scenes/Level2/PoseCameraPreviewUI.cs`
-  - 在游戏界面右上角创建不拦截鼠标的 `RawImage` 预览。
+  - 在游戏界面右上角动态创建摄像头预览。
+  - 根据收到的 `Texture2D` 实际宽高调整窗口比例，不强制使用4:3。
   - `Shift+V` 控制预览显示和隐藏，没有新画面时自动隐藏。
+  - 运行时支持拖动窗口和右下角固定比例缩放。
+  - `Shift+K` 锁定/解锁窗口，解锁时暂时释放鼠标并暂停角色视角输入。
+  - `Shift+R` 重载当前关卡。
+  - 使用 `PlayerPrefs` 保存窗口位置和宽度布局。
 
-Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水平镜像并绘制 MediaPipe 骨架，但不显示每个关键点的长坐标文字。图像只通过 `127.0.0.1` 在本机内存中传输，不写入磁盘。
+- `Assets/Scenes/Level2/PoseCameraPreviewPointerHandler.cs`
+  - 为动态生成的预览窗口提供拖动和缩放的 UI 指针事件接收。
+
+Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水平镜像并绘制 MediaPipe 骨架，但不显示每个关键点的长坐标文字。图像只通过 `127.0.0.1` 在本机内存中传输，不写入磁盘。摄像头采集使用设备实际返回的尺寸，MediaPipe 处理画面保持比例并限制在 `854×480` 边界内，预览发送不再二次缩放为固定尺寸。
 
 ## 7. 已有 Unity 侧动作识别测试脚本
 

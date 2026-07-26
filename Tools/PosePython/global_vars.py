@@ -13,8 +13,6 @@ SEND_UNITY_PREVIEW = True
 DRAW_PREVIEW_LANDMARKS = True
 PREVIEW_HOST = '127.0.0.1'
 PREVIEW_PORT = 52734
-PREVIEW_WIDTH = 480
-PREVIEW_HEIGHT = 360
 PREVIEW_FPS = 12
 PREVIEW_JPEG_QUALITY = 70
 
@@ -23,16 +21,14 @@ USE_LEGACY_PIPES = False # Only supported on Windows (if True, use NamedPipes ra
 HOST = '127.0.0.1'
 PORT = 52733
 
-# Settings do not universally apply, not all WebCams support all frame rates and resolutions
+# The camera is opened using the device-selected mode. The actual frame size is
+# read from each captured frame instead of being forced to a project-wide size.
 CAM_INDEX = 0 # OpenCV2 webcam index, try changing for using another (ex: external) webcam.
-USE_CUSTOM_CAM_SETTINGS = True
-FPS = 30
-CAPTURE_WIDTH = 640
-CAPTURE_HEIGHT = 480
 
-# MediaPipe and the preview window use the downscaled full frame.
-PROCESS_WIDTH = 640
-PROCESS_HEIGHT = 480
+# MediaPipe receives an aspect-preserving frame fitted inside this bounding box.
+# These are limits, not a forced output size. Low-resolution input is never upscaled.
+PROCESS_MAX_WIDTH = 854
+PROCESS_MAX_HEIGHT = 480
 
 # [0, 2] Higher numbers are more precise, but also cost more performance. The demo video used 2 (good environment is more important).
 MODEL_COMPLEXITY = 2

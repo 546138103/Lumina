@@ -21,10 +21,6 @@ class CaptureThread(threading.Thread):
     timer = 0.0
     def run(self):
         self.cap = cv2.VideoCapture(global_vars.CAM_INDEX) # sometimes it can take a while for certain video captures
-        if global_vars.USE_CUSTOM_CAM_SETTINGS:
-            self.cap.set(cv2.CAP_PROP_FPS, global_vars.FPS)
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, global_vars.CAPTURE_WIDTH)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, global_vars.CAPTURE_HEIGHT)
 
         time.sleep(1)
         
@@ -62,8 +58,6 @@ class BodyThread(threading.Thread):
             preview_client = PreviewClient(
                 global_vars.PREVIEW_HOST,
                 global_vars.PREVIEW_PORT,
-                global_vars.PREVIEW_WIDTH,
-                global_vars.PREVIEW_HEIGHT,
                 global_vars.PREVIEW_JPEG_QUALITY,
                 global_vars.PREVIEW_FPS,
             )
@@ -95,10 +89,10 @@ class BodyThread(threading.Thread):
                     continue
                                 
                 # Image transformations and stuff
-                image = cv2.resize(
+                image = resize_to_fit(
                     image,
-                    (global_vars.PROCESS_WIDTH, global_vars.PROCESS_HEIGHT),
-                    interpolation=cv2.INTER_AREA)
+                    global_vars.PROCESS_MAX_WIDTH,
+                    global_vars.PROCESS_MAX_HEIGHT)
                 image = cv2.flip(image, 1)
                 image.flags.writeable = False
                 
@@ -173,8 +167,7 @@ class BodyThread(threading.Thread):
             self.client.start()
         else:
             print("Using Pipes for interprocess communication (not supported on OSX or Linux).")
-        pass      
-
+        pass
     def send_data(self,message):
         if not global_vars.USE_LEGACY_PIPES:
             self.client.sendMessage(message)
@@ -198,4 +191,26 @@ class BodyThread(threading.Thread):
                     print("Failed to write to pipe. Is the unity project open?")
                     self.pipe= None
         pass
-                        
+
+
+def resize_to_fit(image, max_width, max_height):
+    """Resize without changing the camera aspect ratio or upscaling."""
+    source_height, source_width = image.shape[:2]
+    if source_width <= 0 or source_height <= 0:
+        return image
+
+    scale = min(
+        max_width / source_width,
+        max_height / source_height,
+        1.0,
+    )
+
+    if scale >= 1.0:
+        return image
+
+    target_width = max(1, int(round(source_width * scale)))
+    target_height = max(1, int(round(source_height * scale)))
+    return cv2.resize(
+        image,
+        (target_width, target_height),
+        interpolation=cv2.INTER_AREA)

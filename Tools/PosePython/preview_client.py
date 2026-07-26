@@ -13,16 +13,12 @@ class PreviewClient(threading.Thread):
         self,
         host,
         port,
-        width,
-        height,
         jpeg_quality,
         max_fps,
     ):
         super().__init__(daemon=True)
         self.host = host
         self.port = port
-        self.width = width
-        self.height = height
         self.jpeg_quality = jpeg_quality
         self.minimum_submit_interval = 1.0 / max(1, max_fps)
 
@@ -59,14 +55,9 @@ class PreviewClient(threading.Thread):
                 continue
 
             try:
-                resized = cv2.resize(
-                    frame,
-                    (self.width, self.height),
-                    interpolation=cv2.INTER_AREA,
-                )
                 encoded, jpeg = cv2.imencode(
                     ".jpg",
-                    resized,
+                    frame,
                     [cv2.IMWRITE_JPEG_QUALITY, self.jpeg_quality],
                 )
                 if not encoded:
