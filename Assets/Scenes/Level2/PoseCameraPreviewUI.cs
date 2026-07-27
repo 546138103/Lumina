@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using StarterAssets;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -23,6 +25,16 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
 
     [SerializeField] private PoseCameraPreviewReceiver receiver;
 
+    [Header("Selected Landmark Coordinates")]
+    [SerializeField] private bool showSelectedLandmarkCoordinates;
+    [SerializeField] private List<Landmark> selectedLandmarks =
+        new List<Landmark>();
+
+    // Kept hidden so scenes that already serialized the previous single-point
+    // field can migrate to the new list without losing the user's selection.
+    [SerializeField, HideInInspector] private Landmark selectedLandmark =
+        Landmark.NONE;
+
     private GameObject generatedCanvas;
     private Canvas previewCanvas;
     private GameObject previewRoot;
@@ -33,6 +45,9 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
     private GameObject resizeHandle;
     private Image resizeHandleImage;
     private StarterAssetsInputs playerInputs;
+    private PipeServer poseSource;
+    private readonly List<LandmarkOverlay> landmarkOverlays =
+        new List<LandmarkOverlay>();
 
     private bool userVisible = true;
     private bool windowLocked = true;
@@ -50,14 +65,17 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
 
     private void Awake()
     {
+        MigrateLegacyLandmarkSelection();
         ResolveReceiver();
+        ResolvePoseSource();
         EnsurePreviewUI();
     }
 
     private void OnEnable()
     {
         ResolveReceiver();
-
+        ResolvePoseSource();
+        SetWindowLocked(false);
         if (receiver != null)
         {
             receiver.FrameUpdated += HandleFrameUpdated;
@@ -98,6 +116,8 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
         {
             previewRoot.SetActive(shouldShow);
         }
+
+        UpdateSelectedLandmarkOverlay(shouldShow);
     }
 
     private void OnDisable()
@@ -288,6 +308,7 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
         previewAspectRatio.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
         previewAspectRatio.aspectRatio = currentAspectRatio;
 
+        CreateSelectedLandmarkOverlay(imageObject.transform);
         CreateResizeHandle();
         LoadLayout();
         ApplyWindowLockVisualState();
@@ -316,6 +337,190 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
         PoseCameraPreviewPointerHandler resizeHandler =
             resizeHandle.GetComponent<PoseCameraPreviewPointerHandler>();
         resizeHandler.Initialize(this, true);
+    }
+
+    private void CreateSelectedLandmarkOverlay(Transform imageParent)
+    {
+        LandmarkOverlay overlay = new LandmarkOverlay();
+
+        GameObject markerObject = new GameObject(
+            "SelectedLandmarkMarker",
+            typeof(RectTransform),
+            typeof(Image));
+        markerObject.transform.SetParent(imageParent, false);
+
+        overlay.markerRect = markerObject.GetComponent<RectTransform>();
+        overlay.markerRect.anchorMin = new Vector2(0.5f, 0.5f);
+        overlay.markerRect.anchorMax = new Vector2(0.5f, 0.5f);
+        overlay.markerRect.pivot = new Vector2(0.5f, 0.5f);
+        overlay.markerRect.sizeDelta = new Vector2(12f, 12f);
+
+        overlay.markerImage = markerObject.GetComponent<Image>();
+        overlay.markerImage.color = new Color(1f, 0.82f, 0.05f, 1f);
+        overlay.markerImage.raycastTarget = false;
+
+        GameObject labelObject = new GameObject(
+            "SelectedLandmarkCoordinates",
+            typeof(RectTransform),
+            typeof(TextMeshProUGUI));
+        labelObject.transform.SetParent(imageParent, false);
+
+        overlay.labelRect = labelObject.GetComponent<RectTransform>();
+        overlay.labelRect.anchorMin = new Vector2(0.5f, 0.5f);
+        overlay.labelRect.anchorMax = new Vector2(0.5f, 0.5f);
+        overlay.labelRect.pivot = Vector2.zero;
+        overlay.labelRect.sizeDelta = new Vector2(260f, 42f);
+
+        overlay.label = labelObject.GetComponent<TextMeshProUGUI>();
+        overlay.label.fontSize = 20f;
+        overlay.label.fontStyle = FontStyles.Bold;
+        overlay.label.color = Color.white;
+        overlay.label.alignment = TextAlignmentOptions.BottomLeft;
+        overlay.label.enableWordWrapping = false;
+        overlay.label.outlineColor = Color.black;
+        overlay.label.outlineWidth = 0.24f;
+        overlay.label.raycastTarget = false;
+
+        landmarkOverlays.Add(overlay);
+        SetLandmarkOverlayVisible(overlay, false);
+    }
+
+    private void UpdateSelectedLandmarkOverlay(bool previewVisible)
+    {
+        if (!previewVisible ||
+            !showSelectedLandmarkCoordinates ||
+            selectedLandmarks == null ||
+            selectedLandmarks.Count == 0)
+        {
+            SetSelectedLandmarkOverlayVisible(false);
+            return;
+        }
+
+        ResolvePoseSource();
+        if (poseSource == null)
+        {
+            SetSelectedLandmarkOverlayVisible(false);
+            return;
+        }
+
+        EnsureLandmarkOverlayCount(selectedLandmarks.Count);
+
+        HashSet<Landmark> displayedLandmarks = new HashSet<Landmark>();
+        int overlayIndex = 0;
+        foreach (Landmark landmark in selectedLandmarks)
+        {
+            if (landmark == Landmark.NONE ||
+                !displayedLandmarks.Add(landmark) ||
+                !poseSource.TryGetNormalizedLandmark(
+                    landmark,
+                    out Vector3 normalizedPosition,
+                    out float visibility))
+            {
+                continue;
+            }
+
+            UpdateLandmarkOverlay(
+                landmarkOverlays[overlayIndex],
+                landmark,
+                normalizedPosition,
+                visibility);
+            overlayIndex++;
+        }
+
+        for (int i = overlayIndex; i < landmarkOverlays.Count; i++)
+        {
+            SetLandmarkOverlayVisible(landmarkOverlays[i], false);
+        }
+    }
+
+    private void SetSelectedLandmarkOverlayVisible(bool visible)
+    {
+        foreach (LandmarkOverlay overlay in landmarkOverlays)
+        {
+            SetLandmarkOverlayVisible(overlay, visible);
+        }
+    }
+
+    private void EnsureLandmarkOverlayCount(int requiredCount)
+    {
+        while (landmarkOverlays.Count < requiredCount)
+        {
+            CreateSelectedLandmarkOverlay(previewImage.transform);
+        }
+    }
+
+    private void UpdateLandmarkOverlay(
+        LandmarkOverlay overlay,
+        Landmark landmark,
+        Vector3 normalizedPosition,
+        float visibility)
+    {
+        Vector2 point = new Vector2(
+            Mathf.Clamp01(normalizedPosition.x),
+            Mathf.Clamp01(1f - normalizedPosition.y));
+
+        overlay.markerRect.anchorMin = point;
+        overlay.markerRect.anchorMax = point;
+        overlay.markerRect.anchoredPosition = Vector2.zero;
+
+        bool placeToLeft = point.x > 0.62f;
+        bool placeBelow = point.y > 0.72f;
+        overlay.labelRect.anchorMin = point;
+        overlay.labelRect.anchorMax = point;
+        overlay.labelRect.pivot = new Vector2(
+            placeToLeft ? 1f : 0f,
+            placeBelow ? 1f : 0f);
+        overlay.labelRect.anchoredPosition = new Vector2(
+            placeToLeft ? -9f : 9f,
+            placeBelow ? -9f : 9f);
+
+        overlay.label.text =
+            //$"{landmark} ({(int)landmark})\n" +
+            $"X {normalizedPosition.x:F3}  " +
+            $"Y {normalizedPosition.y:F3}  " +
+            $"Z {normalizedPosition.z:F3}";
+
+        Color markerColor = overlay.markerImage.color;
+        markerColor.a = Mathf.Lerp(0.45f, 1f, Mathf.Clamp01(visibility));
+        overlay.markerImage.color = markerColor;
+        SetLandmarkOverlayVisible(overlay, true);
+    }
+
+    private void SetLandmarkOverlayVisible(
+        LandmarkOverlay overlay,
+        bool visible)
+    {
+        if (overlay.markerRect.gameObject.activeSelf != visible)
+        {
+            overlay.markerRect.gameObject.SetActive(visible);
+        }
+
+        if (overlay.labelRect.gameObject.activeSelf != visible)
+        {
+            overlay.labelRect.gameObject.SetActive(visible);
+        }
+    }
+
+    private void MigrateLegacyLandmarkSelection()
+    {
+        if (selectedLandmarks == null)
+        {
+            selectedLandmarks = new List<Landmark>();
+        }
+
+        if (selectedLandmarks.Count == 0 &&
+            selectedLandmark != Landmark.NONE)
+        {
+            selectedLandmarks.Add(selectedLandmark);
+        }
+    }
+
+    private sealed class LandmarkOverlay
+    {
+        public RectTransform markerRect;
+        public Image markerImage;
+        public RectTransform labelRect;
+        public TextMeshProUGUI label;
     }
 
     private void UpdatePreviewAspectRatio(Texture2D texture)
@@ -559,6 +764,14 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
         if (receiver == null)
         {
             receiver = GetComponent<PoseCameraPreviewReceiver>();
+        }
+    }
+
+    private void ResolvePoseSource()
+    {
+        if (poseSource == null)
+        {
+            poseSource = FindObjectOfType<PipeServer>();
         }
     }
 

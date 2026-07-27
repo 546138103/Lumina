@@ -126,7 +126,7 @@ Python MediaPipe
 - 调整原因：统一为清晰的双击手势，避免“单击后等待一段时间再单击”与真正的双击手势混淆。
 - 已通过 C# 编译检查；Play Mode 下的双击识别体验仍待实测确认。
 
-### 2.9 摄像头预览自适应与运行时窗口交互
+### 2.10 摄像头预览自适应与运行时窗口交互
 
 - 已移除 Python 对摄像头采集宽高的强制设置，直接使用设备实际返回的画面。
 - MediaPipe 处理画面改为在 `854×480` 最大边界内等比例缩小，低分辨率画面不放大。
@@ -135,6 +135,14 @@ Python MediaPipe
 - 已新增运行时窗口交互：视频区域可拖动，右下角可按固定比例调整大小。
 - 已新增 `Shift+K` 锁定/解锁窗口，`Shift+R` 重载当前关卡。
 - 已使用 `PlayerPrefs` 保存窗口位置和宽度布局。
+
+### 2.11 Unity 预览多点坐标标注
+
+- 已采用选项 A：使用 MediaPipe `pose_landmarks` 的归一化图像坐标 `x/y/z`，其中 `x`、`y` 是画面内 0 到 1 的相对位置，`z` 是相对于人体的估计深度，不解释为真实厘米或米。
+- Python 在原有世界坐标字段后追加归一化坐标和可见度字段；Unity 继续使用前四个世界坐标字段驱动角色，同时缓存新增字段供预览 UI 使用。
+- `PoseCameraPreviewUI.cs` 提供一个 Inspector 勾选项和可调整数量的 `Selected Landmarks` 列表。启用后会为列表中任意数量的关键点分别显示黄色标记和 `X/Y/Z` 数值，并自动忽略 `NONE` 与重复项。
+- 坐标标记作为 `CameraImage` 子物体生成，跟随实际画面比例和窗口拖动/缩放，不修改场景或 Prefab。
+- Python 语法检查和 `Assembly-CSharp.csproj` 编译检查均已通过，结果为 0 个错误；真实摄像头 Play Mode 下的点位、镜像方向和数值显示仍待实测。
 
 ### 3. 下一步计划
 
@@ -183,7 +191,7 @@ Python MediaPipe
 9. 在预制动画模式下验证 `Waving.anim`，并临时开启举手检测验证 `Hand Raising.anim` 后再恢复关闭。
 10. 在 MediaPipe 模式下验证双臂镜像、平滑度、校准后骨骼跳变和返回移动模式后的 Animator 恢复。
 11. 将任务完成事件连接到 `PoseSocialModeTrigger.CompleteSocialTask()`，形成自动返回移动模式的闭环。
-12. 在实际摄像头 Play Mode 中验证 Unity 预览的位置、镜像方向、骨架显示、`Shift+V` 和断线自动隐藏。
+12. 在实际摄像头 Play Mode 中验证 Unity 预览的位置、镜像方向、骨架显示、单点坐标标注、`Shift+V` 和断线自动隐藏。
 13. 重复进入/退出 Play Mode，检查 TCP `52734` 是否正常释放且不残留预览线程。
 
 ### 3.3 建立 SocialIntent 中间层
@@ -320,3 +328,10 @@ Kinect 后期停产可以作为风险提醒：体感交互如果存在高延迟�
 - Unity 预览根据实际 `Texture2D` 宽高动态调整显示比例，保持不同摄像头画面不拉伸。
 - 新增运行时预览窗口拖动、右下角固定比例缩放、`Shift+K` 锁定/解锁、`Shift+R` 重开当前关卡和 `PlayerPrefs` 布局保存。
 - Python 语法检查通过；C# 自动编译仍受本机 SDK 目录权限限制，需在 Unity Console 和 Play Mode 中继续验证窗口交互。
+
+### 2026-07-27
+
+- 完成摄像头预览多点坐标标注：采用 MediaPipe `pose_landmarks` 的归一化图像坐标，在 Inspector 中勾选显示并通过 `Selected Landmarks` 列表选择任意数量的关键点后，Unity 预览同时标注这些点并显示各自的 `X/Y/Z`。
+- 保留原有世界坐标数据格式的前四个字段，新增坐标字段由 Unity `PipeServer` 单独缓存，不改变 Avatar 的世界坐标驱动逻辑。
+- 坐标标记挂在实际 `CameraImage` 下，随摄像头画面比例、窗口拖动和固定比例缩放同步变化。
+- 已通过 Python AST 语法检查和 `Assembly-CSharp.csproj` 编译检查，结果为 0 个错误；待在真实摄像头 Play Mode 中确认 Inspector 配置、镜像点位和显示效果。

@@ -141,13 +141,41 @@ class BodyThread(threading.Thread):
                         cv2.imshow('Body Tracking', preview_image)
                         cv2.waitKey(3)
 
-                # Set up data for relay
+                # Set up data for relay.
+                # The first four fields are the original world-coordinate
+                # payload used by the avatar. When image landmarks are
+                # available, append normalized image coordinates and
+                # visibility so Unity can annotate the selected preview point.
                 self.data = ""
-                i = 0
                 if results.pose_world_landmarks:
-                    hand_world_landmarks = results.pose_world_landmarks
-                    for i in range(0,33):
-                        self.data += "{}|{}|{}|{}\n".format(i,hand_world_landmarks.landmark[i].x,hand_world_landmarks.landmark[i].y,hand_world_landmarks.landmark[i].z)
+                    world_landmarks = results.pose_world_landmarks.landmark
+                    image_landmarks = (
+                        results.pose_landmarks.landmark
+                        if results.pose_landmarks
+                        else None
+                    )
+                    data_lines = []
+
+                    for i, world_landmark in enumerate(world_landmarks):
+                        line = "{0}|{1:.7f}|{2:.7f}|{3:.7f}".format(
+                            i,
+                            world_landmark.x,
+                            world_landmark.y,
+                            world_landmark.z,
+                        )
+
+                        if image_landmarks is not None and i < len(image_landmarks):
+                            image_landmark = image_landmarks[i]
+                            line += "|{0:.7f}|{1:.7f}|{2:.7f}|{3:.4f}".format(
+                                image_landmark.x,
+                                image_landmark.y,
+                                image_landmark.z,
+                                image_landmark.visibility,
+                            )
+
+                        data_lines.append(line)
+
+                    self.data = "\n".join(data_lines)
 
                 self.send_data(self.data)
                     

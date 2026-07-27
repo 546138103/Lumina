@@ -120,7 +120,7 @@ Lumina 是一个基于 Unity 的社交互动游戏原型，目标对象是孤独
 
 ```text
 Python 摄像头与 MediaPipe
-├-> UDP 52733：人体关键点
+├-> UDP 52733：人体世界坐标 + 归一化图像坐标
 └-> TCP 52734：JPEG 预览画面
                     ↓
               Unity RawImage
@@ -134,6 +134,11 @@ Python 摄像头与 MediaPipe
   - 后台线程接收 JPEG 字节，Unity 主线程负责更新 `Texture2D`。
   - 预览连接断开后继续等待 Python 重连。
 
+- `Assets/Scenes/Level2/PipeServer.cs`
+  - 继续使用数据包前四个字段的世界坐标驱动 Avatar。
+  - 单独缓存追加的 `pose_landmarks` 归一化坐标和可见度，向预览 UI 提供最近一个关键点数据。
+  - 坐标数据超过约 0.5 秒未更新时视为过期，不显示残留标记。
+
 - `Assets/Scenes/Level2/PoseCameraPreviewUI.cs`
   - 在游戏界面右上角动态创建摄像头预览。
   - 根据收到的 `Texture2D` 实际宽高调整窗口比例，不强制使用4:3。
@@ -142,11 +147,13 @@ Python 摄像头与 MediaPipe
   - `Shift+K` 锁定/解锁窗口，解锁时暂时释放鼠标并暂停角色视角输入。
   - `Shift+R` 重载当前关卡。
   - 使用 `PlayerPrefs` 保存窗口位置和宽度布局。
+  - 提供 `Show Selected Landmark Coordinates` 勾选项和可调整数量的 `Selected Landmarks` 列表；启用后可同时显示任意数量关键点的黄色标记和归一化 `X/Y/Z` 坐标，并自动忽略 `NONE` 与重复项。
+  - 标记作为实际 `CameraImage` 的子物体生成，并使用 `y -> 1-y` 将 MediaPipe 左上角原点映射到 Unity UI 坐标，不会因窗口比例变化而漂移。
 
 - `Assets/Scenes/Level2/PoseCameraPreviewPointerHandler.cs`
   - 为动态生成的预览窗口提供拖动和缩放的 UI 指针事件接收。
 
-Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水平镜像并绘制 MediaPipe 骨架，但不显示每个关键点的长坐标文字。图像只通过 `127.0.0.1` 在本机内存中传输，不写入磁盘。摄像头采集使用设备实际返回的尺寸，MediaPipe 处理画面保持比例并限制在 `854×480` 边界内，预览发送不再二次缩放为固定尺寸。
+Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水平镜像并绘制 MediaPipe 骨架，坐标文字由 Unity 预览按配置显示选中的关键点，不在 Python 端固定绘制全部坐标。图像只通过 `127.0.0.1` 在本机内存中传输，不写入磁盘。摄像头采集使用设备实际返回的尺寸，MediaPipe 处理画面保持比例并限制在 `854×480` 边界内，预览发送不再二次缩放为固定尺寸。
 
 ## 7. 已有 Unity 侧动作识别测试脚本
 

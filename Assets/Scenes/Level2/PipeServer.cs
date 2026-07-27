@@ -36,6 +36,12 @@ public class PipeServer : MonoBehaviour
 
     private Body body;
     private long lastPoseReceivedUtcTicks;
+    private readonly object normalizedLandmarkLock = new object();
+    private readonly Vector4[] normalizedLandmarkBuffer =
+        new Vector4[LANDMARK_COUNT];
+    private readonly bool[] normalizedLandmarkValid =
+        new bool[LANDMARK_COUNT];
+    private long lastNormalizedLandmarksReceivedUtcTicks;
 
     // these virtual transforms are not actually provided by mediapipe pose, but are required for avatars.
     // so I just manually compute them
@@ -70,6 +76,59 @@ public class PipeServer : MonoBehaviour
 
         double elapsedSeconds = (System.DateTime.UtcNow.Ticks - receivedTicks) / (double)System.TimeSpan.TicksPerSecond;
         return elapsedSeconds <= timeoutSeconds;
+    }
+
+    /// <summary>
+    /// Gets a landmark's normalized image coordinates from the latest pose
+    /// packet. X and Y are in the 0..1 image range, Y increases downward, and
+    /// Z is MediaPipe's estimated relative depth value.
+    /// </summary>
+    public bool TryGetNormalizedLandmark(
+        Landmark mark,
+        out Vector3 normalizedPosition,
+        out float visibility)
+    {
+        normalizedPosition = Vector3.zero;
+        visibility = 0f;
+
+        int index = (int)mark;
+        if (index < 0 || index >= LANDMARK_COUNT)
+        {
+            return false;
+        }
+
+        long receivedTicks =
+            Interlocked.Read(ref lastNormalizedLandmarksReceivedUtcTicks);
+        if (receivedTicks == 0)
+        {
+            return false;
+        }
+
+        double elapsedSeconds =
+            (System.DateTime.UtcNow.Ticks - receivedTicks) /
+            (double)System.TimeSpan.TicksPerSecond;
+        if (elapsedSeconds > 0.5d)
+        {
+            return false;
+        }
+
+        Vector4 landmarkData;
+        lock (normalizedLandmarkLock)
+        {
+            if (!normalizedLandmarkValid[index])
+            {
+                return false;
+            }
+
+            landmarkData = normalizedLandmarkBuffer[index];
+        }
+
+        normalizedPosition = new Vector3(
+            landmarkData.x,
+            landmarkData.y,
+            landmarkData.z);
+        visibility = landmarkData.w;
+        return true;
     }
 
     private void Start()
@@ -194,10 +253,51 @@ public class PipeServer : MonoBehaviour
                     if (s.Length < 4) continue;
                     int i;
                     if (!int.TryParse(s[0], out i)) continue;
-                    h.positionsBuffer[i].value += new Vector3(float.Parse(s[1]), float.Parse(s[2]), float.Parse(s[3]));
+                    if (i < 0 || i >= LANDMARK_COUNT) continue;
+
+                    float worldX;
+                    float worldY;
+                    float worldZ;
+                    if (!float.TryParse(s[1], out worldX) ||
+                        !float.TryParse(s[2], out worldY) ||
+                        !float.TryParse(s[3], out worldZ))
+                    {
+                        continue;
+                    }
+
+                    h.positionsBuffer[i].value +=
+                        new Vector3(worldX, worldY, worldZ);
                     h.positionsBuffer[i].accumulatedValuesCount += 1;
                     h.active = true;
                     Interlocked.Exchange(ref lastPoseReceivedUtcTicks, System.DateTime.UtcNow.Ticks);
+
+                    if (s.Length >= 8)
+                    {
+                        float imageX;
+                        float imageY;
+                        float imageZ;
+                        float visibility;
+                        if (float.TryParse(s[4], out imageX) &&
+                            float.TryParse(s[5], out imageY) &&
+                            float.TryParse(s[6], out imageZ) &&
+                            float.TryParse(s[7], out visibility))
+                        {
+                            lock (normalizedLandmarkLock)
+                            {
+                                normalizedLandmarkBuffer[i] =
+                                    new Vector4(
+                                        imageX,
+                                        imageY,
+                                        imageZ,
+                                        visibility);
+                                normalizedLandmarkValid[i] = true;
+                            }
+
+                            Interlocked.Exchange(
+                                ref lastNormalizedLandmarksReceivedUtcTicks,
+                                System.DateTime.UtcNow.Ticks);
+                        }
+                    }
 
 
                 }
