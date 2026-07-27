@@ -5,6 +5,7 @@ public class PoseCalibrationCoordinator : MonoBehaviour
 {
     private const int CalibrationMouseButton = 0;
     private const float DoubleClickMaxInterval = 0.30f;
+    private const KeyCode MovementControlSourceToggleKey = KeyCode.J;
 
     [SerializeField] private PoseControlModeManager modeManager;
     [SerializeField] private PoseMovementSourceManager movementSourceManager;
@@ -31,6 +32,12 @@ public class PoseCalibrationCoordinator : MonoBehaviour
 
     private void Update()
     {
+        if (IsShiftHeld() &&
+            Input.GetKeyDown(MovementControlSourceToggleKey))
+        {
+            TryToggleMovementControlSource();
+        }
+
         if (!IsCalibrating)
         {
             if (ConsumeDoubleClick())
@@ -51,6 +58,41 @@ public class PoseCalibrationCoordinator : MonoBehaviour
         {
             TryCompleteCalibration();
         }
+    }
+
+    private void TryToggleMovementControlSource()
+    {
+        ResolveReferences();
+        if (poseMovementInput == null)
+        {
+            return;
+        }
+
+        if (IsCalibrating)
+        {
+            if (calibrationTarget != CalibrationTarget.MovementPose)
+            {
+                return;
+            }
+
+            poseMovementInput.ToggleControlSource();
+            lastClickTime = float.NegativeInfinity;
+            Debug.Log(
+                $"[PoseCalibration] 校准目标已切换为 " +
+                $"{poseMovementInput.CurrentControlSource}，" +
+                "请保持 T-Pose 后双击鼠标左键确认。",
+                this);
+            return;
+        }
+
+        if (GetCurrentCalibrationTarget() != CalibrationTarget.MovementPose)
+        {
+            return;
+        }
+
+        poseMovementInput.ToggleControlSource();
+        lastClickTime = float.NegativeInfinity;
+        TryBeginCalibration();
     }
 
     private bool ConsumeDoubleClick()
@@ -253,6 +295,12 @@ public class PoseCalibrationCoordinator : MonoBehaviour
     private bool IsCalibrationContextStillActive()
     {
         return GetCurrentCalibrationTarget() == calibrationTarget;
+    }
+
+    private bool IsShiftHeld()
+    {
+        return Input.GetKey(KeyCode.LeftShift) ||
+            Input.GetKey(KeyCode.RightShift);
     }
 
     private void ResolveReferences()

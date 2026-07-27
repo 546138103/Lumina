@@ -1,5 +1,11 @@
 using UnityEngine;
 
+public enum PoseMovementControlSource
+{
+    HipAndTorso,
+    ShouldersAndAbove
+}
+
 public class PoseMovementInput : MonoBehaviour
 {
     private const bool AutoFindPipeServer = true;
@@ -38,18 +44,32 @@ public class PoseMovementInput : MonoBehaviour
     // MediaPipe 中朝向摄像头的 z 通常为负；儿童向摄像头前倾时，应转换为角色正向输入。
     // 如果实际摄像头测试仍然前后相反，只需改这个常量。
     private const bool InvertForward = true;
+    private const bool InvertUpperHorizontal = false;
+    private const bool InvertUpperForward = true;
 
     [Header("Pose Source")]
     [SerializeField] private PipeServer pipeServer;
     [SerializeField] private PoseControlModeManager modeManager;
 
+    [Header("Movement Control Source")]
+    [SerializeField] private PoseMovementControlSource controlSource =
+        PoseMovementControlSource.HipAndTorso;
+
+    [Header("Shoulders And Above Thresholds")]
+    [SerializeField, Min(0f)] private float upperHorizontalDeadZone = 0.03f;
+    [SerializeField, Min(0f)] private float upperHorizontalForFullInput = 0.15f;
+    [SerializeField, Min(0f)] private float upperForwardDeadZone = 0.08f;
+    [SerializeField, Min(0f)] private float upperForwardForFullInput = 0.30f;
+
     public Vector2 CurrentMoveInput { get; private set; }
     public Vector3 CurrentBodyOffset { get; private set; }
     public float CurrentForwardLeanOffset { get; private set; }
     public bool HasNeutralPose { get; private set; }
+    public PoseMovementControlSource CurrentControlSource => controlSource;
 
     private Vector3 neutralBodyCenter;
     private float neutralForwardLean;
+    private Vector2 neutralUpperBodyOffset;
     private float poseDataReadyTime = -1f;
 
     private void Awake()
@@ -69,10 +89,7 @@ public class PoseMovementInput : MonoBehaviour
     {
         bool isMovementMode = modeManager == null || modeManager.CurrentMode == PoseControlMode.Movement;
 
-        if (pipeServer == null ||
-            pipeServer.GetVirtualHip() == null ||
-            pipeServer.GetVirtualNeck() == null ||
-            !pipeServer.HasFreshPoseData(PoseDataTimeoutSeconds))
+        if (!HasRequiredPoseData())
         {
             StopMovementAndRequireCalibration();
             return;
@@ -114,21 +131,59 @@ public class PoseMovementInput : MonoBehaviour
             return;
         }
 
-        neutralBodyCenter = GetMovementBodyCenter();
-        neutralForwardLean = GetForwardLeanRatio();
+        if (controlSource == PoseMovementControlSource.HipAndTorso)
+        {
+            neutralBodyCenter = GetMovementBodyCenter();
+            neutralForwardLean = GetForwardLeanRatio();
+        }
+        else
+        {
+            if (!TryGetUpperBodyOffset(out Vector2 upperBodyOffset))
+            {
+                return;
+            }
+
+            neutralUpperBodyOffset = upperBodyOffset;
+        }
+
         CurrentBodyOffset = Vector3.zero;
         CurrentForwardLeanOffset = 0f;
         CurrentMoveInput = Vector2.zero;
         HasNeutralPose = true;
     }
 
-    public bool CanCalibrateNeutralPose =>
-        pipeServer != null &&
-        pipeServer.GetVirtualHip() != null &&
-        pipeServer.GetVirtualNeck() != null &&
-        pipeServer.HasFreshPoseData(PoseDataTimeoutSeconds) &&
-        poseDataReadyTime >= 0f &&
-        Time.unscaledTime - poseDataReadyTime >= InitialPoseWarmupSeconds;
+    public bool CanCalibrateNeutralPose
+    {
+        get
+        {
+            return HasRequiredPoseData() &&
+                poseDataReadyTime >= 0f &&
+                Time.unscaledTime - poseDataReadyTime >=
+                    InitialPoseWarmupSeconds;
+        }
+    }
+
+    public void ToggleControlSource()
+    {
+        SetControlSource(
+            controlSource == PoseMovementControlSource.HipAndTorso
+                ? PoseMovementControlSource.ShouldersAndAbove
+                : PoseMovementControlSource.HipAndTorso);
+    }
+
+    public void SetControlSource(PoseMovementControlSource source)
+    {
+        if (controlSource == source)
+        {
+            return;
+        }
+
+        controlSource = source;
+        ClearNeutralPose();
+        Debug.Log(
+            $"[PoseMovement] 移动控制源已切换为 {controlSource}，等待重新校准。",
+            this);
+    }
 
     public void ClearNeutralPose()
     {
@@ -150,30 +205,72 @@ public class PoseMovementInput : MonoBehaviour
 
     private void UpdateMoveInput()
     {
-        Vector3 bodyCenter = GetMovementBodyCenter();
-        CurrentBodyOffset = bodyCenter - neutralBodyCenter;
-        CurrentForwardLeanOffset = GetForwardLeanRatio() - neutralForwardLean;
+        float rawHorizontal;
+        float rawForward;
+        float horizontalDeadZone;
+        float horizontalForFullInput;
+        float forwardDeadZone;
+        float forwardForFullInput;
+        bool invertHorizontal;
+        bool invertForward;
+
+        if (controlSource == PoseMovementControlSource.HipAndTorso)
+        {
+            Vector3 bodyCenter = GetMovementBodyCenter();
+            CurrentBodyOffset = bodyCenter - neutralBodyCenter;
+            CurrentForwardLeanOffset =
+                GetForwardLeanRatio() - neutralForwardLean;
+
+            rawHorizontal = CurrentBodyOffset.x;
+            rawForward = CurrentForwardLeanOffset;
+            horizontalDeadZone = HorizontalOffsetDeadZone;
+            horizontalForFullInput = HorizontalOffsetForFullInput;
+            forwardDeadZone = ForwardLeanDeadZone;
+            forwardForFullInput = ForwardLeanForFullInput;
+            invertHorizontal = InvertHorizontal;
+            invertForward = InvertForward;
+        }
+        else
+        {
+            if (!TryGetUpperBodyOffset(out Vector2 upperBodyOffset))
+            {
+                StopMovementAndRequireCalibration();
+                return;
+            }
+
+            Vector2 offset = upperBodyOffset - neutralUpperBodyOffset;
+            CurrentBodyOffset = new Vector3(offset.x, 0f, offset.y);
+            CurrentForwardLeanOffset = offset.y;
+
+            rawHorizontal = offset.x;
+            rawForward = offset.y;
+            horizontalDeadZone = upperHorizontalDeadZone;
+            horizontalForFullInput = upperHorizontalForFullInput;
+            forwardDeadZone = upperForwardDeadZone;
+            forwardForFullInput = upperForwardForFullInput;
+            invertHorizontal = InvertUpperHorizontal;
+            invertForward = InvertUpperForward;
+        }
 
         // 移动识别原理：
-        // 1. 左右：使用身体中心相对校准点的 x 偏移，保持与摄像头画面方向一致。
-        // 2. 前后：使用 (肩部.z - 髋部.z) / 躯干长度，再减去校准值。
-        //    pose_world_landmarks 以髋部附近为局部原点，不能用身体中心绝对 z 判断靠近/远离。
+        // 1. 髋部模式继续使用身体中心 x 与肩髋倾斜比例。
+        // 2. 肩部以上模式使用 pose_landmarks 中鼻子相对肩膀中心的 x/z。
         // 3. 两个方向分别经过自己的死区和满输入阈值，结果压到 -1 到 1。
         float horizontal = ApplyDeadZoneAndNormalize(
-            CurrentBodyOffset.x,
-            HorizontalOffsetDeadZone,
-            HorizontalOffsetForFullInput);
+            rawHorizontal,
+            horizontalDeadZone,
+            horizontalForFullInput);
         float forward = ApplyDeadZoneAndNormalize(
-            CurrentForwardLeanOffset,
-            ForwardLeanDeadZone,
-            ForwardLeanForFullInput);
+            rawForward,
+            forwardDeadZone,
+            forwardForFullInput);
 
-        if (InvertHorizontal)
+        if (invertHorizontal)
         {
             horizontal = -horizontal;
         }
 
-        if (InvertForward)
+        if (invertForward)
         {
             forward = -forward;
         }
@@ -220,6 +317,50 @@ public class PoseMovementInput : MonoBehaviour
 
         // 除以躯干长度后，不同身高、不同摄像头距离下可使用同一组前后阈值。
         return torso.z / Mathf.Max(0.0001f, torso.magnitude);
+    }
+
+    private bool TryGetUpperBodyOffset(out Vector2 upperBodyOffset)
+    {
+        upperBodyOffset = Vector2.zero;
+        if (pipeServer == null ||
+            !pipeServer.TryGetNormalizedLandmark(
+                Landmark.NOSE,
+                out Vector3 nose,
+                out _) ||
+            !pipeServer.TryGetNormalizedLandmark(
+                Landmark.LEFT_SHOULDER,
+                out Vector3 leftShoulder,
+                out _) ||
+            !pipeServer.TryGetNormalizedLandmark(
+                Landmark.RIGHT_SHOULDER,
+                out Vector3 rightShoulder,
+                out _))
+        {
+            return false;
+        }
+
+        Vector3 shoulderCenter = (leftShoulder + rightShoulder) * 0.5f;
+        upperBodyOffset = new Vector2(
+            nose.x - shoulderCenter.x,
+            nose.z - shoulderCenter.z);
+        return true;
+    }
+
+    private bool HasRequiredPoseData()
+    {
+        if (pipeServer == null ||
+            !pipeServer.HasFreshPoseData(PoseDataTimeoutSeconds))
+        {
+            return false;
+        }
+
+        if (controlSource == PoseMovementControlSource.HipAndTorso)
+        {
+            return pipeServer.GetVirtualHip() != null &&
+                pipeServer.GetVirtualNeck() != null;
+        }
+
+        return TryGetUpperBodyOffset(out _);
     }
 
     private float ApplyDeadZoneAndNormalize(float value, float deadZone, float fullInputThreshold)

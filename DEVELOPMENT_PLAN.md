@@ -91,7 +91,7 @@ Python MediaPipe
   - 姿态相关快捷键统一要求按住 Shift，避免与 WASD 冲突。
 - 已加入两段式 T-Pose 校准：第一次左键进入准备状态，第二次左键执行校准。
 - 已接入 `Hand Raising.anim` 和 `Waving.anim`；举手识别实现保留，但 `DetectRaiseHand` 当前默认关闭。
-- 已在 `DropZone_1 (2)` 检测区域接入社交模式触发脚本。
+- 已在 `DropZone_1 (2)` 检测区域保留社交模式触发脚本，但进入区域自动切换当前默认关闭；小圈继续用于排队站位检测，且不会改变当前控制模式。
 - 已加入 Level2 场景安装器，可通过 `Lumina/Level2/Install Pose Social Control` 幂等补齐组件和动画引用。
 - 已将 Python 摄像头检测预览接入 Unity 游戏界面：
   - OpenCV 独立窗口默认关闭。
@@ -144,6 +144,13 @@ Python MediaPipe
 - 坐标标记作为 `CameraImage` 子物体生成，跟随实际画面比例和窗口拖动/缩放，不修改场景或 Prefab。
 - Python 语法检查和 `Assembly-CSharp.csproj` 编译检查均已通过，结果为 0 个错误；真实摄像头 Play Mode 下的点位、镜像方向和数值显示仍待实测。
 
+### 2.12 双姿态移动控制源与运行时切换
+
+- `PoseMovementInput.cs` 现提供两种可选移动控制源：`HipAndTorso` 保留原有髋部/躯干模式；`ShouldersAndAbove` 使用肩部以上关键点。
+- 肩部以上模式使用 MediaPipe `pose_landmarks` 归一化坐标：左右输入为“鼻子 X - 双肩中心 X”，前后输入为“鼻子 Z - 双肩中心 Z”；两者均减去 T-Pose 的中性值后再换算为移动输入。
+- 肩部以上模式提供独立 Inspector 阈值：左右死区/满输入默认 `0.03 / 0.15`，前后死区/满输入默认 `0.08 / 0.30`，可在实测后单独调节。
+- `Shift+J` 仅在“移动模式 + 姿态移动来源”下生效：立即切换控制源、清除旧中性值并进入 T-Pose 准备状态；下一次双击左键完成当前控制源校准。准备状态中再次按 `Shift+J` 会改为校准另一个控制源，但保持在准备状态。
+
 ### 3. 下一步计划
 
 ### 3.1 稳定 NPC 互动样板场景
@@ -187,10 +194,11 @@ Python MediaPipe
 5. 检查模式切换时移动输入是否释放上一帧姿态残留，但切回 `Movement` 后仍能继续移动。
 6. 根据实测结果调整代码常量，例如死区、满输入偏移、挥手幅度、举手保持时间和等待时间。
 7. 重点复测姿态移动：左右复位是否立即停止、前倾是否稳定前进、后倾是否稳定后退，以及单轴优先是否消除意外斜向移动。
-8. 验证 `Shift+N`、`Shift+M`、`Shift+B` 三组调试快捷键以及两次左键 T-Pose 校准。
-9. 在预制动画模式下验证 `Waving.anim`，并临时开启举手检测验证 `Hand Raising.anim` 后再恢复关闭。
-10. 在 MediaPipe 模式下验证双臂镜像、平滑度、校准后骨骼跳变和返回移动模式后的 Animator 恢复。
-11. 将任务完成事件连接到 `PoseSocialModeTrigger.CompleteSocialTask()`，形成自动返回移动模式的闭环。
+8. 验证 `Shift+N`、`Shift+M`、`Shift+B`、`Shift+J` 四组调试快捷键以及两次左键 T-Pose 校准；特别检查校准准备中再次 `Shift+J` 后，下一次双击是否校准切换后的控制源。
+9. 分别测试 `HipAndTorso` 与 `ShouldersAndAbove`：左右偏移、前倾/后倾、回到中性时停止，以及肩部以上模式的四个独立阈值是否适合真实摄像头。
+10. 在预制动画模式下验证 `Waving.anim`，并临时开启举手检测验证 `Hand Raising.anim` 后再恢复关闭。
+11. 在 MediaPipe 模式下验证双臂镜像、平滑度、校准后骨骼跳变和返回移动模式后的 Animator 恢复。
+12. 将任务完成事件连接到 `PoseSocialModeTrigger.CompleteSocialTask()`，形成自动返回移动模式的闭环。
 12. 在实际摄像头 Play Mode 中验证 Unity 预览的位置、镜像方向、骨架显示、单点坐标标注、`Shift+V` 和断线自动隐藏。
 13. 重复进入/退出 Play Mode，检查 TCP `52734` 是否正常释放且不残留预览线程。
 
@@ -335,3 +343,5 @@ Kinect 后期停产可以作为风险提醒：体感交互如果存在高延迟�
 - 保留原有世界坐标数据格式的前四个字段，新增坐标字段由 Unity `PipeServer` 单独缓存，不改变 Avatar 的世界坐标驱动逻辑。
 - 坐标标记挂在实际 `CameraImage` 下，随摄像头画面比例、窗口拖动和固定比例缩放同步变化。
 - 已通过 Python AST 语法检查和 `Assembly-CSharp.csproj` 编译检查，结果为 0 个错误；待在真实摄像头 Play Mode 中确认 Inspector 配置、镜像点位和显示效果。
+- 完成姿态移动双控制源：保留原有髋部/躯干算法，新增“肩部以上”算法，以鼻子相对双肩中心的归一化 X/Z 位移控制左右和前后；新增独立阈值配置。
+- 完成 `Shift+J` 运行时切换：切换后立即进入 T-Pose 准备，双击左键确认校准；准备中再次切换会保持准备状态并改校准目标。已通过 `Assembly-CSharp.csproj` 编译检查，0 个错误；待在真实摄像头 Play Mode 验证手感并微调阈值。

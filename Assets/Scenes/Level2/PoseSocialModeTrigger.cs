@@ -4,6 +4,9 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))]
 public class PoseSocialModeTrigger : MonoBehaviour
 {
+    [Header("Trigger Behavior")]
+    [SerializeField] private bool enterSocialModeOnPlayerEnter;
+
     [SerializeField] private PoseControlModeManager modeManager;
 
     private void Awake()
@@ -16,6 +19,11 @@ public class PoseSocialModeTrigger : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (!enterSocialModeOnPlayerEnter)
+        {
+            return;
+        }
+
         if (other.GetComponentInParent<StarterAssetsInputs>() != null)
         {
             modeManager?.SetSocialInteractionMode();
