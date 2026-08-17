@@ -102,7 +102,7 @@ Python MediaPipe
 
 ### 2.7 排队领书任务第一版
 
-- 已在 `Assets/Scenes/Level2` 新增 `QueueBookTaskController.cs` 和 `QueueBookTaskZone.cs`。
+- 已在 `Assets/Scenes/Level2` 新增 `QueueBookTaskController.cs`；原 `QueueBookTaskZone.cs` 后续已重构为通用 `TaskZone.cs`。
 - 第一版支持一个大任务区和任意数量的候选排队位置，当前场景计划配置三个可选位置。
 - 玩家在大任务区连续停留 1 秒后激活任务；任务激活不等同于姿态社交模式，角色仍可移动到排队位置。
 - 玩家任选一个排队位置连续停留 2 秒后完成任务；离开当前位置或切换位置会清零本次等待进度。
@@ -151,6 +151,16 @@ Python MediaPipe
 - 肩部以上模式提供独立 Inspector 阈值：左右死区/满输入默认 `0.03 / 0.15`，前后死区/满输入默认 `0.08 / 0.30`，可在实测后单独调节。
 - `Shift+J` 仅在“移动模式 + 姿态移动来源”下生效：立即切换控制源、清除旧中性值并进入 T-Pose 准备状态；下一次双击左键完成当前控制源校准。准备状态中再次按 `Shift+J` 会改为校准另一个控制源，但保持在准备状态。
 
+### 2.13 Windows 自包含姿态识别发布
+
+- 已恢复开发机 Python 3.12.10 环境，并重建 `Tools/PosePython/.venv`。
+- 已新增 PyInstaller `onedir` 构建配置和 `build-runtime.cmd`，将 MediaPipe、OpenCV、Python 运行时及 heavy 姿态模型打成自包含运行时。
+- 已修改 `PosePythonProcess.cs`：编辑器继续运行 Python 源码，Windows Player 启动随包 `PoseRuntime/LuminaPoseTracker.exe`，WebGL 明确跳过本地 Python 启动。
+- 已新增 Windows Player 构建前检查和构建后自动复制流程；缺少姿态运行时时会中止构建并提示先运行 `build-runtime.cmd`。
+- 已生成并验证 `PC_Portable` 发布包：完整包约 577 MB，接收方不需要安装 Python、MediaPipe 或 OpenCV。
+- 已验证自包含姿态进程打开摄像头、运行 MediaPipe、接入 Windows Player，以及游戏关闭后不残留子进程。
+- 仍需在一台没有安装 Python 的第二台 Windows 电脑上复测摄像头权限、SmartScreen/防火墙提示和真实交互效果。
+
 ### 3. 下一步计划
 
 ### 3.1 稳定 NPC 互动样板场景
@@ -161,8 +171,8 @@ Python MediaPipe
 
 #### 排队领书场景接线
 
-1. 在场景中放置一个覆盖任务范围的大触发区，挂载 `QueueBookTaskZone` 并选择 `TaskArea`。
-2. 放置三个可选排队位置触发区，分别挂载 `QueueBookTaskZone` 并选择 `QueuePosition`。
+1. 在场景中放置一个覆盖任务范围的大触发区，挂载 `TaskZone` 并选择 `TaskArea`。
+2. 放置三个可选排队位置触发区，分别挂载 `TaskZone` 并选择 `ActionArea`。
 3. 在一个独立对象上挂载 `QueueBookTaskController`，将四个区域指向同一个控制器。
 4. 验证大任务区停留不足 1 秒不会激活，满 1 秒只激活一次。
 5. 验证三个位置任选其一停留 2 秒均可完成，换位和离位会清零等待进度。
@@ -345,3 +355,54 @@ Kinect 后期停产可以作为风险提醒：体感交互如果存在高延迟�
 - 已通过 Python AST 语法检查和 `Assembly-CSharp.csproj` 编译检查，结果为 0 个错误；待在真实摄像头 Play Mode 中确认 Inspector 配置、镜像点位和显示效果。
 - 完成姿态移动双控制源：保留原有髋部/躯干算法，新增“肩部以上”算法，以鼻子相对双肩中心的归一化 X/Z 位移控制左右和前后；新增独立阈值配置。
 - 完成 `Shift+J` 运行时切换：切换后立即进入 T-Pose 准备，双击左键确认校准；准备中再次切换会保持准备状态并改校准目标。已通过 `Assembly-CSharp.csproj` 编译检查，0 个错误；待在真实摄像头 Play Mode 验证手感并微调阈值。
+
+### 2026-08-13
+
+- 将排队专用区域脚本重构为通用 `TaskZone` / `TaskZoneController`，统一使用 `TaskArea` 和 `ActionArea` 表示大小圈；排队任务继续保留独立控制器和反馈逻辑。
+- 新增独立 `WaveGreetingTaskController`：进入小圈切换社交模式，只接受 `WaveInvite`，复用现有 `Waving` 预制动画，并在动画自然结束后完成任务、隐藏 UI 请求并恢复移动。
+- UI 本阶段仅保留显示/隐藏 UnityEvent 接口；新增 `CompleteByTeacher()` 兜底接口；递进提示系统和 MediaPipe 双臂模式本次不实施。
+- 为 `PosePresetSocialAnimator` 增加意图动画自然结束事件，并新增选择大小圈即可执行的挥手任务接线菜单。
+- 运行时和 Editor 脚本编译检查均为 0 个错误；Level2 场景中新增的打招呼大小圈尚未保存到磁盘，因此具体区域和 UI 引用仍待接线。
+
+#### 挥手打招呼场景接线与验证
+
+1. 保存当前 `Level2` 场景，确保新建或调整的打招呼大小圈写入磁盘。
+2. 在 Hierarchy 中先选择大圈，再按住 Ctrl 选择小圈并保持小圈为活动对象。
+3. 执行 `Lumina > Level2 > Configure Selected Wave Greeting Zones`。
+4. 在生成的 `WaveGreetingTaskController` 上，将实际 UI 方法连接到任务目标和动作提示的显示/隐藏事件。
+5. 验证进入大圈显示目标提示；离开大圈时隐藏提示并重置未完成任务。
+6. 验证进入小圈后切换社交模式并显示动作提示，身体姿态不再驱动移动。
+7. 验证只在识别 `WaveInvite` 后播放现有 `Waving`，动画完整结束后才隐藏提示并恢复移动。
+8. 验证 `CompleteByTeacher()` 走相同的动画与完成流程。
+
+### 2026-08-15 四关递进社交训练代码
+
+#### 当前进展
+
+- 完成四关统一代码结构：前三关使用可配置 `SocialLessonTaskController`，第四关继续使用 `QueueBookTaskController`，由 `LevelTaskSequenceController` 严格按顺序开放。
+- 完成大圈任务 UI、小圈 2 秒准备、共享环形进度条、教学 UI状态切换、第一/二关目标与替代行为记录、第三关 NPC 说话/回应循环及过早回应反馈。
+- 完成每关独立 NPC 成功反馈：面向玩家、播放成功动画与语音、恢复默认动画和原朝向；反馈与新增星星动画结束后才存档、拆墙和开放下一关。
+- 完成四颗累计星星、`PlayerPrefs` 进度恢复、教师完成/取消接口和第四关全部完成事件。
+- `Shift+R` 已接入四关清档；正常重进场景恢复进度，只有主动重开才从第一关开始。
+- 排队任务已接入统一完成请求和共享 UI；旧版排队反馈中的独立 UI、星星和 NPC 完成反馈保留兼容字段但默认关闭。
+- 本次只修改/新增 C# 脚本和文档，没有修改 Level2 场景、Prefab、图片、动画或音频资源。
+- 已通过包含新增脚本的 C# 编译检查：0 个错误，10 条项目原有警告。
+
+#### 接下来接线
+
+1. 在一个常驻对象上挂 `LevelTaskUIController`，将数组设为四项，拖入每关任务 UI、教学 UI；第三关额外拖入等待/回应 UI，第四关拖入错误引导 UI；拖入一个 Filled/Radial 360 环形进度条。
+2. 第一至三关各挂一个 `SocialLessonTaskController`，依次选择 `GreetingWave`、`InitiateSpeech`、`WaitThenRespond`，Stage Index 依次设为 0、1、2，并拖入同一个 UI 控制器、模式管理器和动作识别器。
+3. 将前三关各自的大圈、小圈 `TaskZone` 显式绑定对应 `SocialLessonTaskController`；第四关大小圈继续绑定 `QueueBookTaskController`。
+4. 第三关配置循环 NPC、说话/默认动画状态、循环语音、5 秒回应窗口和过早回应提示；把未来语音检测或教师按钮连接到 `NotifySpeechDetected()`。
+5. 每关各准备一个 `TaskNpcSuccessFeedback`，配置 NPC、默认状态、成功状态、成功语音和持续时间。
+6. 挂 `LevelTaskSequenceController`，四项依次拖入三个社交任务和排队任务、四个成功反馈、前三面隔断墙；拖入共享 UI、`StarScoreManager`、模式管理器和玩家。
+7. 星星 UI 建立四个带 `Star` 的子对象；第四关 `QueueBookTaskFeedbackController` 拖入共享 UI并保持 `Use Legacy UI Feedback`、`Use Legacy Completion Feedback` 关闭。
+
+#### Play Mode 验证
+
+1. 验证未开放关卡不会响应，大圈立即显示任务 UI，小圈 2 秒进度离开即清零，满 2 秒后才显示教学 UI并切入不可移动的社交模式。
+2. 验证第一、二关挥手和预留说话接口均能通关，且保存的完成方式能够区分目标行为与替代行为。
+3. 验证第三关 NPC 说话时显示等待、过早回应只触发防抖提示；说完后显示回应，5 秒无回应重新循环，有效回应进入成功反馈。
+4. 验证每关 NPC 面向玩家、成功动画/语音播放、恢复默认状态和原朝向；星星动画结束后对应墙才消失。
+5. 验证第四关正确/错误位置、20 秒提醒和共享 UI；第四关完成后派发 `onAllTasksCompleted` 且不自动切场景。
+6. 退出再进入场景验证星星、墙和当前关恢复；按 `Shift+R` 验证存档清除并从第一关开始。

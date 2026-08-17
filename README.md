@@ -54,7 +54,20 @@ Assets\Test\MediaPipe.unity
 
 Unity 不需要等待 Python 每一帧都返回新结果。检测结果尚未更新时，Unity 会继续使用上一次目标，并通过平滑移动保持角色动作连续。因此 Unity 60 FPS、姿态检测 20-30 FPS 是正常组合。
 
-### 4. 配置一个 NPC 互动
+### 4. 发布 Windows 姿态识别版本
+
+开发电脑先运行：
+
+```text
+Tools\PosePython\build-runtime.cmd
+```
+这个是用来改Python脚本的
+
+该脚本会生成自包含的 `Tools\PosePython\dist\LuminaPoseTracker`。随后通过 Unity 构建 Windows Player，构建后处理器会自动把运行时复制到游戏目录的 `PoseRuntime` 文件夹。
+
+接收方不需要安装 Python、MediaPipe 或 OpenCV。分发时必须发送整个 Windows 游戏目录，不能只发送 `Lumina.exe`；接收方解压后直接运行 `Lumina.exe`，并允许 Windows 的摄像头、防火墙或 SmartScreen 提示。
+
+### 5. 配置一个 NPC 互动
 
 一个基础 NPC 互动通常需要：
 
@@ -122,3 +135,42 @@ Unity 不需要等待 Python 每一帧都返回新结果。检测结果尚未更
 - 修改 `InteractionResultType` 等枚举时要谨慎，已有 ScriptableObject 和场景资源可能依赖枚举序列化结果。
 - 修改场景、Prefab、ScriptableObject 前先查看 Git 状态，避免覆盖正在编辑的资源。
 - 大改前建议先提交一个可运行版本，方便回滚。
+
+ 如果下次我再更改的话，我要怎么打包啊
+
+
+• 以后按修改内容分两种情况：
+
+  ### 只修改 Unity 内容
+
+  例如场景、C#、动画、UI：
+
+  1. 打开 Unity。
+  2. 选择 File > Build Settings。
+  3. 平台选择 Windows。
+  4. 点击 Build，选择一个新的输出文件夹。
+  5. Unity 会自动把 PoseRuntime 复制进去。
+
+  这种情况不需要重新运行 Python 打包脚本。
+
+  ### 修改姿态识别 Python
+
+  例如改了 Tools/PosePython 中的 .py 文件、MediaPipe 配置或依赖：
+
+  1. 先运行：
+
+  Tools\PosePython\build-runtime.cmd
+
+  2. 等它显示 Pose runtime is ready。
+  3. 再到 Unity 中正常构建 Windows 版。
+
+  最终发送时，必须发送整个构建目录：
+
+  Lumina.exe
+  Lumina_Data/
+  MonoBleedingEdge/
+  PoseRuntime/
+  UnityPlayer.dll
+  ...
+
+  不能只发送 Lumina.exe。如果忘记先构建姿态运行时，Unity 会中止 Windows 打包并提示运行 build-runtime.cmd。

@@ -7,8 +7,15 @@ public class QueueBookTaskFeedbackController : MonoBehaviour
 {
     [SerializeField] private QueueBookTaskController taskController;
 
+    [Header("四关共享 UI")]
+    [SerializeField] private LevelTaskUIController sharedUiController;
+    [Range(0, 3)]
+    [SerializeField] private int stageIndex = 3;
+
     [Header("进入大圈")]
     [SerializeField] private AudioClip taskAreaEntryVoice;
+    [Tooltip("仅兼容旧场景。接入 LevelTaskUIController 后保持关闭。")]
+    [SerializeField] private bool useLegacyUiFeedback;
     [SerializeField] private GameObject hintPopup;
 
     [Header("2 秒站位环形进度条")]
@@ -21,7 +28,8 @@ public class QueueBookTaskFeedbackController : MonoBehaviour
     [Header("长时间未找到正确位置")]
     [SerializeField] private AudioClip idleReminderVoice;
 
-    [Header("选对位置后的 NPC 反馈")]
+    [Header("旧版完成反馈（四关总控接入后保持关闭）")]
+    [SerializeField] private bool useLegacyCompletionFeedback;
     [SerializeField] private Animator npcAnimator;
     [Tooltip("可选。不填写时使用 Animator 所在的 Transform。")]
     [SerializeField] private Transform npcTransform;
@@ -47,7 +55,12 @@ public class QueueBookTaskFeedbackController : MonoBehaviour
     {
         SetProgressRing(0f);
 
-        if (StarScoreManager == null)
+        if (sharedUiController == null)
+        {
+            sharedUiController = FindObjectOfType<LevelTaskUIController>(true);
+        }
+
+        if (useLegacyCompletionFeedback && StarScoreManager == null)
         {
             StarScoreManager = FindObjectOfType<StarScoreManager>(true);
         }
@@ -99,8 +112,12 @@ public class QueueBookTaskFeedbackController : MonoBehaviour
     private void HandleTaskAreaEntered()
     {
         PlayVoice(taskAreaEntryVoice);
+        sharedUiController?.ShowTaskUi(stageIndex, true);
+        sharedUiController?.ShowTeachingUi(
+            stageIndex,
+            TaskTeachingUiState.Hidden);
 
-        if (hintPopup != null)
+        if (useLegacyUiFeedback && hintPopup != null)
         {
             hintPopup.SetActive(true);
         }
@@ -108,7 +125,10 @@ public class QueueBookTaskFeedbackController : MonoBehaviour
 
     private void HandleTaskAreaExited()
     {
-        if (hintPopup != null)
+        sharedUiController?.HideStage(stageIndex);
+        sharedUiController?.SetProgress(0f);
+
+        if (useLegacyUiFeedback && hintPopup != null)
         {
             hintPopup.SetActive(false);
         }
@@ -116,14 +136,20 @@ public class QueueBookTaskFeedbackController : MonoBehaviour
         SetProgressRing(0f);
     }
 
-    private void HandleQueuePositionCompleted(QueueBookTaskZone completedZone)
+    private void HandleQueuePositionCompleted(TaskZone completedZone)
     {
-        if (hintPopup != null)
+        sharedUiController?.SetProgress(0f);
+        SetProgressRing(0f);
+
+        if (!useLegacyCompletionFeedback)
+        {
+            return;
+        }
+
+        if (useLegacyUiFeedback && hintPopup != null)
         {
             hintPopup.SetActive(false);
         }
-
-        SetProgressRing(0f);
 
         if (StarScoreManager != null)
         {
@@ -139,24 +165,38 @@ public class QueueBookTaskFeedbackController : MonoBehaviour
         npcFeedbackRoutine = StartCoroutine(PlayNpcCompletionFeedback());
     }
 
-    private void HandlePositionNeedsGuidance(QueueBookTaskZone wrongZone)
+    private void HandlePositionNeedsGuidance(TaskZone wrongZone)
     {
+        sharedUiController?.ShowTeachingUi(
+            stageIndex,
+            TaskTeachingUiState.QueueGuidance);
         PlayVoice(guidanceVoice);
     }
 
     private void HandleIdleNeedsGuidance()
     {
+        sharedUiController?.ShowTeachingUi(
+            stageIndex,
+            TaskTeachingUiState.QueueGuidance);
         PlayVoice(idleReminderVoice);
     }
 
     private void HandleWaitProgress(float progress)
     {
+        if (progress > 0f)
+        {
+            sharedUiController?.ShowTeachingUi(
+                stageIndex,
+                TaskTeachingUiState.Hidden);
+        }
+
+        sharedUiController?.SetProgress(progress);
         SetProgressRing(progress);
     }
 
     private void SetProgressRing(float progress)
     {
-        if (progressRing == null)
+        if (!useLegacyUiFeedback || progressRing == null)
         {
             return;
         }

@@ -14,6 +14,8 @@ public sealed class PosePythonProcess : MonoBehaviour
     [SerializeField] private string pythonExecutableOverride = string.Empty;
     [SerializeField] private string pythonRelativeToProject = @"Tools\PosePython\.venv\Scripts\python.exe";
     [SerializeField] private string scriptRelativeToProject = @"Tools\PosePython\main.py";
+    [Tooltip("Path inside a Windows player build. The runtime is copied here automatically after a build.")]
+    [SerializeField] private string windowsRuntimeRelativeToPlayer = @"PoseRuntime\LuminaPoseTracker.exe";
 
     [Header("Shutdown")]
     [SerializeField, Min(1)] private int gracefulShutdownTimeoutSeconds = 5;
@@ -41,9 +43,13 @@ public sealed class PosePythonProcess : MonoBehaviour
     [ContextMenu("Start Python Pose Tracker")]
     public void StartPython()
     {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        Debug.LogWarning("The Python pose tracker is not available in WebGL builds.");
+        return;
+#else
         if (_process != null && !_process.HasExited)
         {
-            Debug.Log("Python pose tracker is already running.");
+            Debug.Log("Pose tracker is already running.");
             return;
         }
 
@@ -53,29 +59,16 @@ public sealed class PosePythonProcess : MonoBehaviour
             _process = null;
         }
 
-        var pythonPath = string.IsNullOrWhiteSpace(pythonExecutableOverride)
-            ? ResolveProjectPath(pythonRelativeToProject)
-            : ResolveProjectPath(pythonExecutableOverride);
-        var scriptPath = ResolveProjectPath(scriptRelativeToProject);
-        if (!File.Exists(pythonPath))
+        if (!TryResolveLaunch(out var executablePath, out var arguments, out var workingDirectory))
         {
-            Debug.LogError(
-                $"Python executable was not found: {pythonPath}\n" +
-                "Run Tools/PosePython/setup-python.cmd once, then try again.");
-            return;
-        }
-
-        if (!File.Exists(scriptPath))
-        {
-            Debug.LogError($"Python pose script was not found: {scriptPath}");
             return;
         }
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = pythonPath,
-            Arguments = $"-u {Quote(scriptPath)}",
-            WorkingDirectory = Path.GetDirectoryName(scriptPath),
+            FileName = executablePath,
+            Arguments = arguments,
+            WorkingDirectory = workingDirectory,
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
@@ -113,6 +106,7 @@ public sealed class PosePythonProcess : MonoBehaviour
             process.Dispose();
             Debug.LogException(exception);
         }
+#endif
     }
 
     [ContextMenu("Stop Python Pose Tracker")]
@@ -180,6 +174,54 @@ public sealed class PosePythonProcess : MonoBehaviour
 
         var projectRoot = Directory.GetParent(Application.dataPath)?.FullName;
         return Path.GetFullPath(Path.Combine(projectRoot ?? string.Empty, relativePath));
+    }
+
+    private bool TryResolveLaunch(
+        out string executablePath,
+        out string arguments,
+        out string workingDirectory)
+    {
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+        var playerRoot = Directory.GetParent(Application.dataPath)?.FullName;
+        executablePath = Path.GetFullPath(Path.Combine(
+            playerRoot ?? string.Empty,
+            windowsRuntimeRelativeToPlayer));
+        arguments = string.Empty;
+        workingDirectory = Path.GetDirectoryName(executablePath);
+
+        if (File.Exists(executablePath))
+        {
+            return true;
+        }
+
+        Debug.LogError(
+            $"Packaged pose runtime was not found: {executablePath}\n" +
+            "Rebuild the Windows player after running Tools/PosePython/build-runtime.cmd.");
+        return false;
+#else
+        executablePath = string.IsNullOrWhiteSpace(pythonExecutableOverride)
+            ? ResolveProjectPath(pythonRelativeToProject)
+            : ResolveProjectPath(pythonExecutableOverride);
+        var scriptPath = ResolveProjectPath(scriptRelativeToProject);
+        arguments = $"-u {Quote(scriptPath)}";
+        workingDirectory = Path.GetDirectoryName(scriptPath);
+
+        if (!File.Exists(executablePath))
+        {
+            Debug.LogError(
+                $"Python executable was not found: {executablePath}\n" +
+                "Run Tools/PosePython/setup-python.cmd once, then try again.");
+            return false;
+        }
+
+        if (File.Exists(scriptPath))
+        {
+            return true;
+        }
+
+        Debug.LogError($"Python pose script was not found: {scriptPath}");
+        return false;
+#endif
     }
 
     private static string Quote(string value)

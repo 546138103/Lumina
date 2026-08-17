@@ -17,9 +17,9 @@ public enum QueueBookTaskState
 public class QueueBookTaskFloatUnityEvent : UnityEvent<float> { }
 
 [Serializable]
-public class QueueBookTaskZoneUnityEvent : UnityEvent<QueueBookTaskZone> { }
+public class TaskZoneUnityEvent : UnityEvent<TaskZone> { }
 
-public class QueueBookTaskController : MonoBehaviour
+public class QueueBookTaskController : TaskZoneController
 {
     // 玩家需要在大任务区内连续停留 1 秒，任务才会激活。
     // 离开大任务区会立即清零这段计时。
@@ -38,15 +38,15 @@ public class QueueBookTaskController : MonoBehaviour
     private const bool LogTaskTransitions = true;
 
     [Header("正确排队位置（可选）")]
-    [SerializeField] private QueueBookTaskZone correctPosition;
+    [SerializeField] private TaskZone correctPosition;
 
     [Header("Task Messages")]
     public UnityEvent onTaskAreaEntered = new UnityEvent();
     public UnityEvent onTaskAreaExited = new UnityEvent();
     public UnityEvent onTaskEntered = new UnityEvent();
     public QueueBookTaskFloatUnityEvent onWaitProgress = new QueueBookTaskFloatUnityEvent();
-    public QueueBookTaskZoneUnityEvent onTaskCompleted = new QueueBookTaskZoneUnityEvent();
-    public QueueBookTaskZoneUnityEvent onPositionNeedsGuidance = new QueueBookTaskZoneUnityEvent();
+    public TaskZoneUnityEvent onTaskCompleted = new TaskZoneUnityEvent();
+    public TaskZoneUnityEvent onPositionNeedsGuidance = new TaskZoneUnityEvent();
     public UnityEvent onIdleNeedsGuidance = new UnityEvent();
     public UnityEvent onTaskAbandoned = new UnityEvent();
 
@@ -54,27 +54,29 @@ public class QueueBookTaskController : MonoBehaviour
     public event Action TaskAreaExited;
     public event Action TaskEntered;
     public event Action<float> WaitProgress;
-    public event Action<QueueBookTaskZone> TaskCompleted;
-    public event Action<QueueBookTaskZone> PositionNeedsGuidance;
+    public event Action<TaskZone> TaskCompleted;
+    public event Action<TaskZone> PositionNeedsGuidance;
     public event Action IdleNeedsGuidance;
     public event Action TaskAbandoned;
 
     public QueueBookTaskState CurrentState { get; private set; } = QueueBookTaskState.Inactive;
-    public QueueBookTaskZone CurrentQueuePosition { get; private set; }
-    public QueueBookTaskZone CompletedQueuePosition { get; private set; }
+    public TaskZone CurrentQueuePosition { get; private set; }
+    public TaskZone CompletedQueuePosition { get; private set; }
     public float WaitProgressNormalized { get; private set; }
 
-    private readonly List<QueueBookTaskZone> registeredZones = new List<QueueBookTaskZone>();
+    private readonly List<TaskZone> registeredZones = new List<TaskZone>();
     private StarterAssetsInputs activePlayer;
     private float activationTimer;
     private float waitTimer;
     private float idleTimer;
     private float lastTaskAreaEntryVoiceTime = -Mathf.Infinity;
-    private QueueBookTaskZone zonePendingReentry;
+    private TaskZone zonePendingReentry;
 
     private void Update()
     {
-        if (CurrentState == QueueBookTaskState.Completed || activePlayer == null)
+        if (!IsTaskAvailable ||
+            CurrentState == QueueBookTaskState.Completed ||
+            activePlayer == null)
         {
             return;
         }
@@ -95,7 +97,7 @@ public class QueueBookTaskController : MonoBehaviour
 
         if (CurrentState == QueueBookTaskState.Active)
         {
-            QueueBookTaskZone occupiedPosition = FindOccupiedQueuePosition();
+            TaskZone occupiedPosition = FindOccupiedQueuePosition();
             if (occupiedPosition != null)
             {
                 StartWaitingAt(occupiedPosition);
@@ -108,7 +110,7 @@ public class QueueBookTaskController : MonoBehaviour
         }
     }
 
-    public void RegisterZone(QueueBookTaskZone zone)
+    public override void RegisterZone(TaskZone zone)
     {
         if (zone != null && !registeredZones.Contains(zone))
         {
@@ -116,7 +118,7 @@ public class QueueBookTaskController : MonoBehaviour
         }
     }
 
-    public void UnregisterZone(QueueBookTaskZone zone)
+    public override void UnregisterZone(TaskZone zone)
     {
         registeredZones.Remove(zone);
 
@@ -126,14 +128,15 @@ public class QueueBookTaskController : MonoBehaviour
         }
     }
 
-    public void NotifyZoneEntered(QueueBookTaskZone zone, StarterAssetsInputs player)
+    public override void NotifyZoneEntered(TaskZone zone, StarterAssetsInputs player)
     {
-        if (zone == null || player == null || CurrentState == QueueBookTaskState.Completed)
+        if (!IsTaskAvailable || zone == null || player == null ||
+            CurrentState == QueueBookTaskState.Completed)
         {
             return;
         }
 
-        if (zone.Role == QueueBookTaskZoneRole.TaskArea)
+        if (zone.Role == TaskZoneRole.TaskArea)
         {
             RaiseTaskAreaEntryVoice();
 
@@ -156,14 +159,14 @@ public class QueueBookTaskController : MonoBehaviour
         }
     }
 
-    public void NotifyZoneExited(QueueBookTaskZone zone, StarterAssetsInputs player)
+    public override void NotifyZoneExited(TaskZone zone, StarterAssetsInputs player)
     {
         if (zone == null || player == null || player != activePlayer)
         {
             return;
         }
 
-        if (zone.Role == QueueBookTaskZoneRole.QueuePosition)
+        if (zone.Role == TaskZoneRole.ActionArea)
         {
             if (zone == CurrentQueuePosition)
             {
@@ -257,16 +260,16 @@ public class QueueBookTaskController : MonoBehaviour
         TaskEntered?.Invoke();
         onTaskEntered?.Invoke();
 
-        QueueBookTaskZone occupiedPosition = FindOccupiedQueuePosition();
+        TaskZone occupiedPosition = FindOccupiedQueuePosition();
         if (occupiedPosition != null)
         {
             StartWaitingAt(occupiedPosition);
         }
     }
 
-    private void StartWaitingAt(QueueBookTaskZone zone)
+    private void StartWaitingAt(TaskZone zone)
     {
-        if (zone == null || zone.Role != QueueBookTaskZoneRole.QueuePosition)
+        if (zone == null || zone.Role != TaskZoneRole.ActionArea)
         {
             return;
         }
@@ -314,6 +317,32 @@ public class QueueBookTaskController : MonoBehaviour
 
         TaskCompleted?.Invoke(CompletedQueuePosition);
         onTaskCompleted?.Invoke(CompletedQueuePosition);
+        RequestSequenceCompletion(TaskCompletionMethod.TargetAction);
+    }
+
+    public override void CompleteCurrentTaskByTeacher()
+    {
+        if (!IsTaskAvailable || CurrentState == QueueBookTaskState.Completed)
+        {
+            return;
+        }
+
+        CompletedQueuePosition = CurrentQueuePosition;
+        ResetWaitProgress();
+        SetState(QueueBookTaskState.Completed);
+        TaskCompleted?.Invoke(CompletedQueuePosition);
+        onTaskCompleted?.Invoke(CompletedQueuePosition);
+        RequestSequenceCompletion(TaskCompletionMethod.Teacher);
+    }
+
+    public override void CancelCurrentInteractionByTeacher()
+    {
+        if (!IsTaskAvailable || CurrentState == QueueBookTaskState.Completed)
+        {
+            return;
+        }
+
+        ResetTask();
     }
 
     // 站错位置：不进入 Completed 终态，但触发一次后这个位置会被标记为“待重新进入”，
@@ -321,7 +350,7 @@ public class QueueBookTaskController : MonoBehaviour
     // “孩子卡关很久没找到正确位置”这种情况改由独立的 TickIdleGuidance 负责，不由本方法处理。
     private void RaiseGuidanceForWrongPosition()
     {
-        QueueBookTaskZone wrongPosition = CurrentQueuePosition;
+        TaskZone wrongPosition = CurrentQueuePosition;
         zonePendingReentry = wrongPosition;
 
         ResetWaitProgress();
@@ -372,9 +401,9 @@ public class QueueBookTaskController : MonoBehaviour
     {
         for (int i = 0; i < registeredZones.Count; i++)
         {
-            QueueBookTaskZone zone = registeredZones[i];
+            TaskZone zone = registeredZones[i];
             if (zone != null &&
-                zone.Role == QueueBookTaskZoneRole.TaskArea &&
+                zone.Role == TaskZoneRole.TaskArea &&
                 zone.IsOccupiedBy(activePlayer))
             {
                 return true;
@@ -384,13 +413,13 @@ public class QueueBookTaskController : MonoBehaviour
         return false;
     }
 
-    private QueueBookTaskZone FindOccupiedQueuePosition()
+    private TaskZone FindOccupiedQueuePosition()
     {
         for (int i = 0; i < registeredZones.Count; i++)
         {
-            QueueBookTaskZone zone = registeredZones[i];
+            TaskZone zone = registeredZones[i];
             if (zone != null &&
-                zone.Role == QueueBookTaskZoneRole.QueuePosition &&
+                zone.Role == TaskZoneRole.ActionArea &&
                 zone != zonePendingReentry &&
                 zone.IsOccupiedBy(activePlayer))
             {
@@ -413,5 +442,34 @@ public class QueueBookTaskController : MonoBehaviour
         {
             Debug.Log($"[QueueBookTask] 当前状态：{CurrentState}", this);
         }
+    }
+
+    protected override void OnTaskAvailabilityChanged(bool available)
+    {
+        if (!available && CurrentState != QueueBookTaskState.Completed)
+        {
+            ResetRuntimeState(false);
+            activePlayer = null;
+        }
+    }
+
+    protected override void OnSequenceCompletedRestored()
+    {
+        activePlayer = null;
+        activationTimer = 0f;
+        idleTimer = 0f;
+        CurrentQueuePosition = null;
+        SetState(QueueBookTaskState.Completed);
+    }
+
+    protected override void OnSequenceCompletionFinalized()
+    {
+        SetState(QueueBookTaskState.Completed);
+    }
+
+    protected override void OnSequenceReset()
+    {
+        activePlayer = null;
+        ResetRuntimeState(false);
     }
 }

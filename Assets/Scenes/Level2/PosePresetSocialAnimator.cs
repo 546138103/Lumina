@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEngine.Playables;
@@ -17,6 +18,9 @@ public class PosePresetSocialAnimator : MonoBehaviour
     private AvatarMask upperBodyMask;
     private bool graphCreated;
     private bool clipConnected;
+    private SocialIntent currentIntent = SocialIntent.None;
+
+    public event Action<SocialIntent> IntentAnimationCompleted;
 
     public Animator TargetAnimator
     {
@@ -56,7 +60,7 @@ public class PosePresetSocialAnimator : MonoBehaviour
 
         if (time >= duration)
         {
-            StopCurrentClip();
+            CompleteCurrentClip();
         }
     }
 
@@ -89,6 +93,11 @@ public class PosePresetSocialAnimator : MonoBehaviour
             return;
         }
 
+        if (clipConnected && currentIntent == intent)
+        {
+            return;
+        }
+
         EnsureGraph();
         if (!graphCreated)
         {
@@ -102,6 +111,7 @@ public class PosePresetSocialAnimator : MonoBehaviour
         currentClipPlayable.SetApplyPlayableIK(false);
         currentClipPlayable.SetDuration(clip.length);
         currentClipPlayable.SetTime(0d);
+        currentIntent = intent;
 
         graph.Connect(currentClipPlayable, 0, layerMixer, 1);
         layerMixer.SetInputWeight(1, 0f);
@@ -125,6 +135,7 @@ public class PosePresetSocialAnimator : MonoBehaviour
         }
 
         clipConnected = false;
+        currentIntent = SocialIntent.None;
     }
 
     public void Deactivate()
@@ -136,6 +147,7 @@ public class PosePresetSocialAnimator : MonoBehaviour
 
         graphCreated = false;
         clipConnected = false;
+        currentIntent = SocialIntent.None;
 
         if (upperBodyMask != null)
         {
@@ -147,6 +159,17 @@ public class PosePresetSocialAnimator : MonoBehaviour
         {
             targetAnimator.Rebind();
             targetAnimator.Update(0f);
+        }
+    }
+
+    private void CompleteCurrentClip()
+    {
+        SocialIntent completedIntent = currentIntent;
+        StopCurrentClip();
+
+        if (completedIntent != SocialIntent.None)
+        {
+            IntentAnimationCompleted?.Invoke(completedIntent);
         }
     }
 

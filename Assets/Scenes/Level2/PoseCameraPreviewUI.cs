@@ -373,6 +373,9 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
 
         overlay.label = labelObject.GetComponent<TextMeshProUGUI>();
         overlay.label.fontSize = 20f;
+        overlay.label.enableAutoSizing = true;
+        overlay.label.fontSizeMin = 12f;
+        overlay.label.fontSizeMax = 20f;
         overlay.label.fontStyle = FontStyles.Bold;
         overlay.label.color = Color.white;
         overlay.label.alignment = TextAlignmentOptions.BottomLeft;
@@ -463,16 +466,11 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
         overlay.markerRect.anchorMax = point;
         overlay.markerRect.anchoredPosition = Vector2.zero;
 
-        bool placeToLeft = point.x > 0.62f;
+        bool placeToLeft = point.x > 0.5f;
         bool placeBelow = point.y > 0.72f;
         overlay.labelRect.anchorMin = point;
         overlay.labelRect.anchorMax = point;
-        overlay.labelRect.pivot = new Vector2(
-            placeToLeft ? 1f : 0f,
-            placeBelow ? 1f : 0f);
-        overlay.labelRect.anchoredPosition = new Vector2(
-            placeToLeft ? -9f : 9f,
-            placeBelow ? -9f : 9f);
+        overlay.labelRect.pivot = new Vector2(0.5f, 0.5f);
 
         overlay.label.text =
             //$"{landmark} ({(int)landmark})\n" +
@@ -480,10 +478,68 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
             $"Y {normalizedPosition.y:F3}  " +
             $"Z {normalizedPosition.z:F3}";
 
+        KeepLandmarkLabelInsidePreview(
+            overlay.labelRect,
+            point,
+            placeToLeft,
+            placeBelow);
+
         Color markerColor = overlay.markerImage.color;
         markerColor.a = Mathf.Lerp(0.45f, 1f, Mathf.Clamp01(visibility));
         overlay.markerImage.color = markerColor;
         SetLandmarkOverlayVisible(overlay, true);
+    }
+
+    private static void KeepLandmarkLabelInsidePreview(
+        RectTransform labelRect,
+        Vector2 point,
+        bool placeToLeft,
+        bool placeBelow)
+    {
+        RectTransform previewRect = labelRect.parent as RectTransform;
+        if (previewRect == null)
+        {
+            labelRect.anchoredPosition = Vector2.zero;
+            return;
+        }
+
+        const float markerGap = 9f;
+        const float edgePadding = 4f;
+        Rect parentBounds = previewRect.rect;
+        labelRect.SetSizeWithCurrentAnchors(
+            RectTransform.Axis.Horizontal,
+            Mathf.Min(260f, Mathf.Max(1f, parentBounds.width - edgePadding * 2f)));
+        Vector2 labelSize = labelRect.rect.size;
+        float halfWidth = Mathf.Min(
+            labelSize.x * 0.5f,
+            Mathf.Max(0f, parentBounds.width * 0.5f - edgePadding));
+        float halfHeight = Mathf.Min(
+            labelSize.y * 0.5f,
+            Mathf.Max(0f, parentBounds.height * 0.5f - edgePadding));
+
+        float pointLocalX = Mathf.Lerp(parentBounds.xMin, parentBounds.xMax, point.x);
+        float pointLocalY = Mathf.Lerp(parentBounds.yMin, parentBounds.yMax, point.y);
+        float desiredCenterX = pointLocalX +
+            (placeToLeft
+                ? -markerGap - halfWidth
+                : markerGap + halfWidth);
+        float desiredCenterY = pointLocalY +
+            (placeBelow
+                ? -markerGap - halfHeight
+                : markerGap + halfHeight);
+
+        float centerX = Mathf.Clamp(
+            desiredCenterX,
+            parentBounds.xMin + halfWidth + edgePadding,
+            parentBounds.xMax - halfWidth - edgePadding);
+        float centerY = Mathf.Clamp(
+            desiredCenterY,
+            parentBounds.yMin + halfHeight + edgePadding,
+            parentBounds.yMax - halfHeight - edgePadding);
+
+        labelRect.anchoredPosition = new Vector2(
+            centerX - pointLocalX,
+            centerY - pointLocalY);
     }
 
     private void SetLandmarkOverlayVisible(
@@ -829,6 +885,7 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
             return;
         }
 
+        LevelTaskSequenceController.ClearSavedProgress();
         SceneManager.LoadScene(activeScene.buildIndex);
     }
 

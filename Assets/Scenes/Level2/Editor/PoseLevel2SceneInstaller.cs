@@ -3,7 +3,6 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[InitializeOnLoad]
 public static class PoseLevel2SceneInstaller
 {
     private const string Level2ScenePath = "Assets/Scenes/Level2/Level2.unity";

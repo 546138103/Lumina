@@ -2,37 +2,33 @@ using System.Collections.Generic;
 using StarterAssets;
 using UnityEngine;
 
-public enum QueueBookTaskZoneRole
+public enum TaskZoneRole
 {
     TaskArea,
-    QueuePosition
+    ActionArea
 }
 
 [RequireComponent(typeof(Collider))]
-public class QueueBookTaskZone : MonoBehaviour
+public class TaskZone : MonoBehaviour
 {
-    [SerializeField] private QueueBookTaskZoneRole role;
-    [SerializeField] private QueueBookTaskController taskController;
+    [SerializeField] private TaskZoneRole role;
+    [SerializeField] private TaskZoneController taskController;
 
     private readonly Dictionary<StarterAssetsInputs, int> playerColliderCounts =
         new Dictionary<StarterAssetsInputs, int>();
 
-    public QueueBookTaskZoneRole Role => role;
+    public TaskZoneRole Role => role;
     public string ZoneName => gameObject.name;
 
     private void Awake()
     {
-        if (taskController == null)
-        {
-            taskController = FindObjectOfType<QueueBookTaskController>();
-        }
-
+        ResolveController();
         taskController?.RegisterZone(this);
 
         Collider zoneCollider = GetComponent<Collider>();
         if (!zoneCollider.isTrigger)
         {
-            Debug.LogWarning($"[QueueBookTask] 区域 {name} 的 Collider 需要勾选 Is Trigger。", this);
+            Debug.LogWarning($"[TaskZone] 区域 {name} 的 Collider 需要勾选 Is Trigger。", this);
         }
     }
 
@@ -65,7 +61,6 @@ public class QueueBookTaskZone : MonoBehaviour
         playerColliderCounts.TryGetValue(player, out int colliderCount);
         playerColliderCounts[player] = colliderCount + 1;
 
-        // 一个角色可能带有多个 Collider，只在第一个 Collider 进入时派发进入消息。
         if (colliderCount == 0)
         {
             taskController?.NotifyZoneEntered(this, player);
@@ -94,6 +89,37 @@ public class QueueBookTaskZone : MonoBehaviour
     public bool IsOccupiedBy(StarterAssetsInputs player)
     {
         return player != null && playerColliderCounts.ContainsKey(player);
+    }
+
+    private void ResolveController()
+    {
+        if (taskController != null)
+        {
+            return;
+        }
+
+        TaskZoneController[] controllers = FindObjectsOfType<TaskZoneController>();
+        if (controllers.Length == 1)
+        {
+            taskController = controllers[0];
+            return;
+        }
+
+        QueueBookTaskController queueController = FindObjectOfType<QueueBookTaskController>();
+        if (queueController != null && IsLegacyQueueZone())
+        {
+            taskController = queueController;
+            return;
+        }
+
+        Debug.LogWarning(
+            $"[TaskZone] 区域 {name} 未指定任务控制器。场景中存在多个任务时必须显式绑定。",
+            this);
+    }
+
+    private bool IsLegacyQueueZone()
+    {
+        return name.StartsWith("DropZone_1", System.StringComparison.Ordinal);
     }
 
     private void Reset()

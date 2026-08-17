@@ -1,9 +1,10 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
 public class StarScoreManager : MonoBehaviour
 {
-    [Header("星星动画")]
+    [Header("四关共用星星动画")]
     [Min(1f)]
     [SerializeField] private float enlargeScale = 1.5f;
     [Min(0f)]
@@ -15,6 +16,19 @@ public class StarScoreManager : MonoBehaviour
 
     private Star[] stars;
     private Coroutine showStarsRoutine;
+    private Action showCompletedCallback;
+    private int visibleStarCount;
+
+    public int StarCount
+    {
+        get
+        {
+            ResolveStars();
+            return stars.Length;
+        }
+    }
+
+    public int VisibleStarCount => visibleStarCount;
 
     private void Awake()
     {
@@ -24,48 +38,98 @@ public class StarScoreManager : MonoBehaviour
 
     public void ShowStars(int numberOfStars)
     {
+        ShowStars(numberOfStars, null);
+    }
+
+    public void ShowStars(int numberOfStars, Action onCompleted)
+    {
         if (!gameObject.activeSelf)
         {
             gameObject.SetActive(true);
         }
 
         ResolveStars();
+        int targetCount = Mathf.Clamp(numberOfStars, 0, stars.Length);
 
         if (showStarsRoutine != null)
         {
             StopCoroutine(showStarsRoutine);
+            showStarsRoutine = null;
+            showCompletedCallback = null;
         }
 
-        showStarsRoutine = StartCoroutine(
-            ShowStarsRoutine(Mathf.Clamp(numberOfStars, 0, stars.Length)));
+        if (targetCount < visibleStarCount)
+        {
+            SetStarsImmediate(targetCount);
+            onCompleted?.Invoke();
+            return;
+        }
+
+        if (targetCount == visibleStarCount)
+        {
+            onCompleted?.Invoke();
+            return;
+        }
+
+        showCompletedCallback = onCompleted;
+        showStarsRoutine = StartCoroutine(ShowStarsRoutine(targetCount));
     }
 
-    public void ResetStars()
+    public void SetStarsImmediate(int numberOfStars)
     {
         ResolveStars();
 
+        if (showStarsRoutine != null)
+        {
+            StopCoroutine(showStarsRoutine);
+            showStarsRoutine = null;
+        }
+
+        showCompletedCallback = null;
+        visibleStarCount = Mathf.Clamp(numberOfStars, 0, stars.Length);
+
         for (int i = 0; i < stars.Length; i++)
         {
-            if (stars[i] != null)
+            if (stars[i] == null)
+            {
+                continue;
+            }
+
+            if (i < visibleStarCount)
+            {
+                stars[i].SetScale(finalScale);
+            }
+            else
             {
                 stars[i].ResetVisual();
             }
         }
     }
 
-    private IEnumerator ShowStarsRoutine(int numberOfStars)
+    public void ResetStars()
     {
-        ResetStars();
+        SetStarsImmediate(0);
+    }
 
-        for (int i = 0; i < numberOfStars; i++)
+    private IEnumerator ShowStarsRoutine(int targetCount)
+    {
+        // 保证 StartCoroutine 返回前不会同步跑完整个回调链。
+        yield return null;
+
+        for (int i = visibleStarCount; i < targetCount; i++)
         {
             if (stars[i] != null)
             {
                 yield return AnimateStar(stars[i]);
             }
+
+            visibleStarCount = i + 1;
         }
 
         showStarsRoutine = null;
+        Action callback = showCompletedCallback;
+        showCompletedCallback = null;
+        callback?.Invoke();
     }
 
     private IEnumerator AnimateStar(Star star)

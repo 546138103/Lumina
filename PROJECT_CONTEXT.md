@@ -155,6 +155,15 @@ Python 摄像头与 MediaPipe
 
 Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水平镜像并绘制 MediaPipe 骨架，坐标文字由 Unity 预览按配置显示选中的关键点，不在 Python 端固定绘制全部坐标。图像只通过 `127.0.0.1` 在本机内存中传输，不写入磁盘。摄像头采集使用设备实际返回的尺寸，MediaPipe 处理画面保持比例并限制在 `854×480` 边界内，预览发送不再二次缩放为固定尺寸。
 
+### 6.1 Windows 自包含姿态运行时
+
+- `Tools/PosePython/build-runtime.cmd` 使用 PyInstaller `onedir` 构建 `LuminaPoseTracker.exe`，并把 MediaPipe heavy 姿态模型、OpenCV 和 Python 运行时一并放入 `dist/LuminaPoseTracker`。
+- Unity 编辑器仍从 `Tools/PosePython/.venv` 运行 Python 源码；Windows Player 改为启动游戏目录中的 `PoseRuntime/LuminaPoseTracker.exe`。
+- `Assets/Editor/PoseRuntimeBuildPostprocessor.cs` 会在 Windows 构建前检查运行时是否存在，并在构建完成后自动复制整个运行时目录。
+- 接收方不需要安装 Python、MediaPipe 或 OpenCV，但必须获得完整游戏目录，不能只复制 `Lumina.exe`。
+- WebGL 仍不支持启动本地 Python 进程；WebGL 姿态识别需要单独实现浏览器侧 MediaPipe JS/WASM 管线。
+- 已验证打包后的姿态运行时可以独立打开摄像头、运行模型并正常退出；已验证 Windows Player 能从随包 `PoseRuntime` 自动启动该进程，并在游戏关闭后清理子进程。
+
 ## 7. 已有 Unity 侧动作识别测试脚本
 
 当前已在 `Assets/Test` 中加入 Unity 侧动作识别脚本：
@@ -242,6 +251,8 @@ Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水�
 
 该组脚本的当前设计边界是：姿态移动只生成输入，不直接移动角色；社交识别生成意图和手侧信息，角色表现层消费这些结果，NPC 反馈和任务状态仍由后续场景逻辑接入。
 
+姿态移动与社交动作识别采用严格互斥模式：进入 `SocialInteraction` 后停止姿态移动，角色不能继续行走，只进行社交动作检测；返回 `Movement` 后才恢复姿态移动。这样设计是因为两套姿态判定同时运行会互相干扰。任务小圈完成准备计时并切入社交模式后，不再设计“玩家走出小圈”的运行分支；任务完成或任务系统明确取消社交阶段时，才切回移动模式。后续任务设计不应反复提出或实现“社交模式中走出小圈”的处理逻辑。
+
 ### 8.1 排队领书任务基础
 
 当前已在 `Assets/Scenes/Level2` 加入排队领书任务脚本：
@@ -254,8 +265,9 @@ Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水�
   - 离开大任务区会触发与进入消息对称的离开消息，并重置尚未完成的任务；已完成的任务离开大任务区不受影响。
   - 提供的消息：大区进入、大区离开、任务进入（激活）、等待进度、任务完成（带选中位置）、需要引导（带选错的位置）、任务放弃。
 
-- `QueueBookTaskZone.cs`
-  - 同一组件可配置为大任务区或候选排队位置。
+- `TaskZone.cs` / `TaskZoneController.cs`
+  - 大小圈已抽为通用任务区域：`TaskArea` 表示大任务区，`ActionArea` 表示任务动作区。
+  - 具体任务控制器继承 `TaskZoneController`，同一场景存在多个任务时由每个区域显式绑定所属控制器。
   - 对玩家的多个 Collider 进行计数，避免重复进入和提前退出消息。
 
 - `QueueBookTaskFeedbackController.cs`
@@ -269,6 +281,45 @@ Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水�
 任务状态与 `PoseControlMode` 相互独立：激活排队任务不会立即关闭移动，玩家仍可走到候选位置之一。
 
 新增/调整脚本已通过 `Assembly-CSharp.csproj` 编译检查，结果为 0 个错误；Level2 场景接线（正确位置、提示图片、NPC 动画、语音片段）和 Play Mode 行为仍待验证。
+
+### 8.2 挥手打招呼任务代码基础
+
+- `WaveGreetingTaskController.cs`
+  - 使用独立任务状态处理“大圈激活 -> 小圈进入社交模式 -> 识别 `WaveInvite` -> 等待预制动画结束 -> 完成并恢复移动”。
+  - UI 内容不写死，只提供任务目标与动作提示的显示/隐藏 UnityEvent 接口。
+  - 提供 `CompleteByTeacher()` 教师兜底接口；教师通关与正常识别共用预制挥手动画和完成流程。
+  - 本阶段不实现递进提示计时，不处理 MediaPipe 双臂表现模式。
+- `PosePresetSocialAnimator.cs`
+  - 预制动画自然播放结束时派发包含 `SocialIntent` 的结束事件；手动停止或退出模式不派发完成事件。
+- `Editor/WaveGreetingTaskSceneInstaller.cs`
+  - 提供 `Lumina > Level2 > Configure Selected Wave Greeting Zones` 菜单，可将选中的大圈和小圈接入挥手任务并自动连接现有姿态组件。
+
+上述运行时脚本与 Editor 接线菜单均已通过 C# 编译检查，结果为 0 个错误；Level2 场景对象、UI 事件和真实摄像头 Play Mode 行为仍待接线验证。
+
+### 8.3 四关递进任务代码基础
+
+- `TaskZoneController.cs`
+  - 在原有大小圈通知接口上增加顺序任务可用状态、完成请求、存档恢复和教师兜底契约；没有四关总控时，任务控制器仍可独立完成，便于测试。
+- `SocialLessonTaskController.cs`
+  - 第一至三关共用同一个可配置控制器：`GreetingWave`、`InitiateSpeech`、`WaitThenRespond`。
+  - 大圈进入显示任务 UI；小圈连续停留默认 2 秒后才显示教学 UI并进入社交模式，离开小圈会清零本次准备进度。
+  - 第一关以挥手为目标行为、预留说话接口为替代行为；第二关相反。两者都允许通关，并通过 `TaskCompletionMethod` 区分 `TargetAction` / `AlternativeAction`。
+  - 第三关进入社交模式后执行 NPC“说话 -> 5 秒回应窗口”循环：说话阶段显示等待 UI并拒绝通关，回应阶段显示回应 UI，挥手或 `NotifySpeechDetected()` 均可完成；过早回应提供默认 3 秒防抖消息。
+  - 第一、二关复用默认 20 秒的重复卡关提醒；语音识别本身未实现，只提供 `NotifySpeechDetected()` 接口。
+- `LevelTaskUIController.cs`
+  - 按四关统一管理任务 UI、普通教学 UI、第三关等待/回应 UI、第四关错误引导 UI和一个共用环形进度条。
+- `TaskNpcSuccessFeedback.cs`
+  - 每关可单独配置 NPC、默认动画、成功动画、成功语音和持续时间；播放前面向玩家，结束后恢复默认动画和原朝向。
+- `LevelTaskSequenceController.cs`
+  - 严格按照数组中的四个 `TaskZoneController` 顺序开放任务；每关完成后等待 NPC 成功反馈和新增星星动画结束，再保存进度、移除对应隔断墙并开放下一关。
+  - 使用 `PlayerPrefs` 保存已完成关数及各关完成方式；载入场景时恢复四颗累计星星、隔断墙和当前开放关卡，不重复播放结算演出。
+  - 提供教师完成、教师取消以及 `onAllTasksCompleted`；`Shift+R` 会先清除四关存档再重载场景。
+- `QueueBookTaskController.cs` / `QueueBookTaskFeedbackController.cs`
+  - 第四关保留正确圈、错误圈、2 秒位置确认、20 秒卡关提醒等现有排队逻辑，并接入统一完成请求和共享 UI；旧版独立星星/NPC 完成反馈默认关闭，避免与四关总控重复播放。
+- `StarScoreManager.cs`
+  - 改为累计显示：恢复存档时立即显示前 N 颗，通关时只动画新增的下一颗；星星数量由实际 `Star` 子物体决定，四关场景应配置四颗。
+
+上述代码已通过包含新增脚本的 `Assembly-CSharp.csproj` 编译检查，结果为 0 个错误、10 条项目原有警告。尚未修改或验证 Level2 场景、Prefab、UI、NPC、隔断墙和四颗星星的 Inspector 接线，真实摄像头 Play Mode 流程仍待验证。
 
 ## 9. 已有提示特效基础
 

@@ -45,5 +45,9 @@ desktop.ini
 # Unity packages / exports
 *.unitypackage
 
+# Python pose runtime build outputs
+/Tools/PosePython/build/
+/Tools/PosePython/dist/
+
 # Logs
 *.log
