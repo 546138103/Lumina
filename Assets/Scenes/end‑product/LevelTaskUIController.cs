@@ -18,9 +18,9 @@ public class LevelTaskUiSet
     public GameObject taskUi;
     [Tooltip("第一、二关的普通教学图；也可作为其他关卡的默认教学图。")]
     public GameObject teachingUi;
-    [Tooltip("第三关 NPC 说话阶段显示。")]
+    [Tooltip("第三关 NPC 正常对话、尚不允许玩家回应时显示。")]
     public GameObject waitUi;
-    [Tooltip("第三关 NPC 停顿、允许玩家回应时显示。")]
+    [Tooltip("第三关 NPC 对话结束、播放待机动画并面向玩家时显示。")]
     public GameObject respondUi;
     [Tooltip("第四关选错位置或长时间未找到正确位置时显示。")]
     public GameObject queueGuidanceUi;

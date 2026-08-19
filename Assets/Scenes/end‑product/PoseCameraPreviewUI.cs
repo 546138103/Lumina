@@ -885,7 +885,6 @@ public sealed class PoseCameraPreviewUI : MonoBehaviour
             return;
         }
 
-        LevelTaskSequenceController.ClearSavedProgress();
         SceneManager.LoadScene(activeScene.buildIndex);
     }
 

@@ -412,7 +412,7 @@ public class SocialLessonTaskController : TaskZoneController
     private void StartConversationLoop()
     {
         StopConversationLoop();
-        CaptureAndFaceConversationNpc();
+        CaptureConversationNpcRotation();
         conversationRoutine = StartCoroutine(ConversationLoop());
     }
 
@@ -422,6 +422,7 @@ public class SocialLessonTaskController : TaskZoneController
                CurrentState != SocialLessonTaskState.CompletionPending &&
                CurrentState != SocialLessonTaskState.Completed)
         {
+            RestoreConversationNpcRotation(false);
             SetState(SocialLessonTaskState.NpcSpeaking);
             uiController?.ShowTeachingUi(
                 stageIndex,
@@ -444,6 +445,7 @@ public class SocialLessonTaskController : TaskZoneController
             }
 
             PlayConversationAnimation(conversationDefaultState);
+            FaceConversationNpcToPlayer();
             SetState(SocialLessonTaskState.ResponseWindow);
             uiController?.ShowTeachingUi(
                 stageIndex,
@@ -567,6 +569,9 @@ public class SocialLessonTaskController : TaskZoneController
         modeManager?.SetMovementMode();
         uiController?.HideStage(stageIndex);
         uiController?.SetProgress(0f);
+        activePlayer = null;
+        preparationZone = null;
+        idleGuidanceTimer = 0f;
         SetState(SocialLessonTaskState.Completed);
         onTaskCompleted?.Invoke();
     }
@@ -618,7 +623,7 @@ public class SocialLessonTaskController : TaskZoneController
         }
     }
 
-    private void CaptureAndFaceConversationNpc()
+    private void CaptureConversationNpcRotation()
     {
         Transform npc = ResolveConversationNpc();
         if (npc == null)
@@ -628,6 +633,15 @@ public class SocialLessonTaskController : TaskZoneController
 
         conversationNpcOriginalRotation = npc.rotation;
         hasConversationNpcOriginalRotation = true;
+    }
+
+    private void FaceConversationNpcToPlayer()
+    {
+        Transform npc = ResolveConversationNpc();
+        if (npc == null)
+        {
+            return;
+        }
 
         Transform player = activePlayer != null ? activePlayer.transform : null;
         if (player == null)
@@ -646,14 +660,21 @@ public class SocialLessonTaskController : TaskZoneController
     private void RestoreConversationNpc()
     {
         PlayConversationAnimation(conversationDefaultState);
+        RestoreConversationNpcRotation(true);
+    }
 
+    private void RestoreConversationNpcRotation(bool clearCapturedRotation)
+    {
         Transform npc = ResolveConversationNpc();
         if (hasConversationNpcOriginalRotation && npc != null)
         {
             npc.rotation = conversationNpcOriginalRotation;
         }
 
-        hasConversationNpcOriginalRotation = false;
+        if (clearCapturedRotation)
+        {
+            hasConversationNpcOriginalRotation = false;
+        }
     }
 
     private Transform ResolveConversationNpc()

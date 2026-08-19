@@ -117,16 +117,40 @@ public class TaskNpcSuccessFeedback : MonoBehaviour
 
     private Transform ResolveNpcTransform()
     {
-        return npcTransform != null
-            ? npcTransform
-            : npcAnimator != null ? npcAnimator.transform : null;
+        if (npcTransform != null)
+        {
+            bool matchesAnimator = npcAnimator == null ||
+                npcAnimator.transform == npcTransform ||
+                npcAnimator.transform.IsChildOf(npcTransform);
+            if (matchesAnimator)
+            {
+                return npcTransform;
+            }
+
+            Debug.LogWarning(
+                "[TaskNpcSuccessFeedback] Npc Transform 与 Npc Animator 不属于同一个角色，" +
+                "已自动改用 Animator 所在 Transform。请检查 Inspector 引用。",
+                this);
+        }
+
+        return npcAnimator != null ? npcAnimator.transform : null;
     }
 
     private Transform ResolvePlayerTransform()
     {
         if (playerTransform != null)
         {
-            return playerTransform;
+            StarterAssetsInputs configuredPlayer =
+                playerTransform.GetComponent<StarterAssetsInputs>();
+            if (configuredPlayer == null)
+            {
+                configuredPlayer =
+                    playerTransform.GetComponentInChildren<StarterAssetsInputs>(true);
+            }
+
+            return configuredPlayer != null
+                ? configuredPlayer.transform
+                : playerTransform;
         }
 
         StarterAssetsInputs player = FindObjectOfType<StarterAssetsInputs>();

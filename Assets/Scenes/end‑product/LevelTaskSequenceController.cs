@@ -12,6 +12,8 @@ public class LevelTaskStageEntry
     public TaskNpcSuccessFeedback successFeedback;
     [Tooltip("本关反馈和星星动画结束后移除；第四关留空。")]
     public GameObject barrierAfterStage;
+    [Tooltip("本关完成后玩家传送到这里；通常第一至三关填写，第四关可留空。位置和朝向都会应用。")]
+    public Transform nextStageSpawnPoint;
 }
 
 [Serializable]
@@ -20,8 +22,6 @@ public class LevelTaskStageCompletedUnityEvent :
 
 public class LevelTaskSequenceController : MonoBehaviour
 {
-    private const string SavePrefix = "Lumina.Level2.FourStage.";
-    private const string CompletedCountKey = SavePrefix + "CompletedCount";
     private const int ExpectedStageCount = 4;
 
     [Header("严格顺序的四关（索引 0-3）")]
@@ -65,8 +65,8 @@ public class LevelTaskSequenceController : MonoBehaviour
 
     private void Start()
     {
-        // 等所有 UI/星星组件执行完 Awake 后再恢复，避免它们的初始化清空存档显示。
-        RestoreSavedProgress();
+        // 四关进度只在当前运行期间有效；每次载入场景都从第一关开始。
+        InitializeFreshProgress();
     }
 
     private void OnDestroy()
@@ -90,7 +90,7 @@ public class LevelTaskSequenceController : MonoBehaviour
         onTeacherCancelledInteraction?.Invoke();
     }
 
-    public TaskCompletionMethod GetSavedCompletionMethod(int stageIndex)
+    public TaskCompletionMethod GetCompletionMethod(int stageIndex)
     {
         if (stageIndex < 0 || stageIndex >= completionMethods.Length)
         {
@@ -98,17 +98,6 @@ public class LevelTaskSequenceController : MonoBehaviour
         }
 
         return completionMethods[stageIndex];
-    }
-
-    public static void ClearSavedProgress()
-    {
-        PlayerPrefs.DeleteKey(CompletedCountKey);
-        for (int i = 0; i < ExpectedStageCount; i++)
-        {
-            PlayerPrefs.DeleteKey(GetCompletionMethodKey(i));
-        }
-
-        PlayerPrefs.Save();
     }
 
     private void HandleCompletionRequested(
@@ -205,7 +194,7 @@ public class LevelTaskSequenceController : MonoBehaviour
             barrier.SetActive(false);
         }
 
-        SaveProgress();
+        TeleportPlayer(stages[completedStageIndex].nextStageSpawnPoint);
         ApplyTaskAvailability();
         onStageCompleted?.Invoke(completedStageIndex, completedMethod);
 
@@ -215,22 +204,22 @@ public class LevelTaskSequenceController : MonoBehaviour
         }
     }
 
-    private void RestoreSavedProgress()
+    private void InitializeFreshProgress()
     {
-        CompletedStageCount = Mathf.Clamp(
-            PlayerPrefs.GetInt(CompletedCountKey, 0),
-            0,
-            StageCount);
+        CompletedStageCount = 0;
 
         for (int i = 0; i < completionMethods.Length; i++)
         {
-            completionMethods[i] = (TaskCompletionMethod)PlayerPrefs.GetInt(
-                GetCompletionMethodKey(i),
-                (int)TaskCompletionMethod.None);
+            completionMethods[i] = TaskCompletionMethod.None;
+        }
+
+        for (int i = 0; i < StageCount; i++)
+        {
+            stages[i]?.taskController?.ResetSequenceState();
         }
 
         uiController?.HideAll();
-        starScoreManager?.SetStarsImmediate(CompletedStageCount);
+        starScoreManager?.SetStarsImmediate(0);
         ApplyBarriers();
         ApplyTaskAvailability();
         modeManager?.SetMovementMode();
@@ -268,19 +257,6 @@ public class LevelTaskSequenceController : MonoBehaviour
                     !AllTasksCompleted && i == CompletedStageCount);
             }
         }
-    }
-
-    private void SaveProgress()
-    {
-        PlayerPrefs.SetInt(CompletedCountKey, CompletedStageCount);
-        for (int i = 0; i < completionMethods.Length; i++)
-        {
-            PlayerPrefs.SetInt(
-                GetCompletionMethodKey(i),
-                (int)completionMethods[i]);
-        }
-
-        PlayerPrefs.Save();
     }
 
     private void SubscribeToTasks()
@@ -343,6 +319,68 @@ public class LevelTaskSequenceController : MonoBehaviour
         return player != null ? player.transform : null;
     }
 
+    private void TeleportPlayer(Transform destination)
+    {
+        if (destination == null)
+        {
+            return;
+        }
+
+        Transform player = ResolvePlayerTransform();
+        if (player == null)
+        {
+            Debug.LogWarning(
+                "[LevelTaskSequence] 已配置下一关传送点，但没有找到玩家 Transform。",
+                this);
+            return;
+        }
+
+        CharacterController characterController =
+            player.GetComponent<CharacterController>();
+        if (characterController == null)
+        {
+            characterController =
+                player.GetComponentInChildren<CharacterController>(true);
+        }
+
+        if (characterController == null)
+        {
+            characterController = player.GetComponentInParent<CharacterController>();
+        }
+
+        Transform teleportTarget;
+        if (characterController != null)
+        {
+            teleportTarget = characterController.transform;
+        }
+        else
+        {
+            StarterAssetsInputs playerInputs =
+                player.GetComponentInChildren<StarterAssetsInputs>(true);
+            teleportTarget = playerInputs != null
+                ? playerInputs.transform
+                : player;
+        }
+        bool controllerWasEnabled = characterController != null &&
+            characterController.enabled;
+
+        if (controllerWasEnabled)
+        {
+            characterController.enabled = false;
+        }
+
+        teleportTarget.SetPositionAndRotation(
+            destination.position,
+            destination.rotation);
+
+        if (controllerWasEnabled)
+        {
+            characterController.enabled = true;
+        }
+
+        Physics.SyncTransforms();
+    }
+
     private void ResolveReferences()
     {
         if (uiController == null)
@@ -361,8 +399,4 @@ public class LevelTaskSequenceController : MonoBehaviour
         }
     }
 
-    private static string GetCompletionMethodKey(int stageIndex)
-    {
-        return SavePrefix + "CompletionMethod." + stageIndex;
-    }
 }

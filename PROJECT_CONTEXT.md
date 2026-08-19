@@ -299,25 +299,25 @@ Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水�
 ### 8.3 四关递进任务代码基础
 
 - `TaskZoneController.cs`
-  - 在原有大小圈通知接口上增加顺序任务可用状态、完成请求、存档恢复和教师兜底契约；没有四关总控时，任务控制器仍可独立完成，便于测试。
+  - 在原有大小圈通知接口上增加顺序任务可用状态、完成请求、运行时重置和教师兜底契约；没有四关总控时，任务控制器仍可独立完成，便于测试。
 - `SocialLessonTaskController.cs`
   - 第一至三关共用同一个可配置控制器：`GreetingWave`、`InitiateSpeech`、`WaitThenRespond`。
   - 大圈进入显示任务 UI；小圈连续停留默认 2 秒后才显示教学 UI并进入社交模式，离开小圈会清零本次准备进度。
   - 第一关以挥手为目标行为、预留说话接口为替代行为；第二关相反。两者都允许通关，并通过 `TaskCompletionMethod` 区分 `TargetAction` / `AlternativeAction`。
-  - 第三关进入社交模式后执行 NPC“说话 -> 5 秒回应窗口”循环：说话阶段显示等待 UI并拒绝通关，回应阶段显示回应 UI，挥手或 `NotifySpeechDetected()` 均可完成；过早回应提供默认 3 秒防抖消息。
+  - 第三关进入社交模式后执行 NPC“正常朝向说话 -> 待机并面向玩家 -> 5 秒回应窗口”循环：说话阶段显示等待 UI并拒绝通关，回应阶段显示回应 UI，挥手或 `NotifySpeechDetected()` 均可完成；回应超时后恢复原朝向再开始下一轮对话，过早回应提供默认 3 秒防抖消息。
   - 第一、二关复用默认 20 秒的重复卡关提醒；语音识别本身未实现，只提供 `NotifySpeechDetected()` 接口。
 - `LevelTaskUIController.cs`
   - 按四关统一管理任务 UI、普通教学 UI、第三关等待/回应 UI、第四关错误引导 UI和一个共用环形进度条。
 - `TaskNpcSuccessFeedback.cs`
   - 每关可单独配置 NPC、默认动画、成功动画、成功语音和持续时间；播放前面向玩家，结束后恢复默认动画和原朝向。
 - `LevelTaskSequenceController.cs`
-  - 严格按照数组中的四个 `TaskZoneController` 顺序开放任务；每关完成后等待 NPC 成功反馈和新增星星动画结束，再保存进度、移除对应隔断墙并开放下一关。
-  - 使用 `PlayerPrefs` 保存已完成关数及各关完成方式；载入场景时恢复四颗累计星星、隔断墙和当前开放关卡，不重复播放结算演出。
-  - 提供教师完成、教师取消以及 `onAllTasksCompleted`；`Shift+R` 会先清除四关存档再重载场景。
+  - 严格按照数组中的四个 `TaskZoneController` 顺序开放任务；每关完成后等待 NPC 成功反馈和新增星星动画结束，再移除对应隔断墙、将玩家传送到本关配置的下一关空物体位置并开放下一关。
+  - 四关完成状态和完成方式只在当前运行期间保留，不写入 `PlayerPrefs`；每次载入场景都从第一关、0 颗星开始。摄像头预览窗口布局仍独立保存，不受此规则影响。
+  - 提供教师完成、教师取消以及 `onAllTasksCompleted`；`Shift+R` 直接重载场景并从第一关重新开始。
 - `QueueBookTaskController.cs` / `QueueBookTaskFeedbackController.cs`
   - 第四关保留正确圈、错误圈、2 秒位置确认、20 秒卡关提醒等现有排队逻辑，并接入统一完成请求和共享 UI；旧版独立星星/NPC 完成反馈默认关闭，避免与四关总控重复播放。
 - `StarScoreManager.cs`
-  - 改为累计显示：恢复存档时立即显示前 N 颗，通关时只动画新增的下一颗；星星数量由实际 `Star` 子物体决定，四关场景应配置四颗。
+  - 在单次运行中累计显示：通关时只动画新增的下一颗；星星数量由实际 `Star` 子物体决定，四关场景应配置四颗，重新载入场景后回到 0 颗。
 
 上述代码已通过包含新增脚本的 `Assembly-CSharp.csproj` 编译检查，结果为 0 个错误、10 条项目原有警告。尚未修改或验证 Level2 场景、Prefab、UI、NPC、隔断墙和四颗星星的 Inspector 接线，真实摄像头 Play Mode 流程仍待验证。
 
