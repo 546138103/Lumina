@@ -26,11 +26,7 @@ Lumina 是一个基于 Unity 的、面向孤独症谱系障碍儿童（ASD 儿�
 
 ### 1. 打开 Unity 项目
 
-使用 Unity `2022.3.62f3c1` 打开本目录：
-
-```text
-C:\Users\Administrator\Desktop\Grade_1\ResearchGroup\Unity\Project\Lumina
-```
+使用 Unity `2022.3.62f3c1` 打开当前 `Lumina` 项目根目录（`.`）。本说明中的项目内路径均相对于该目录，命令行操作也默认从该目录执行。
 
 ### 2. 配置 Python 姿态识别环境
 
