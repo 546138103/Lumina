@@ -6,6 +6,8 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,6 +20,7 @@ public class LuminaTTSEditorWindow : EditorWindow
 {
     private const string ServerUrl =
         "http://127.0.0.1:8001";
+    private const string ExpectedModel = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice";
 
     private static readonly string[] SpeakerIds =
     {
@@ -50,9 +53,13 @@ public class LuminaTTSEditorWindow : EditorWindow
 
     private string serverStatus = "未启动";
     private bool serverReady = false;
+    private bool checkingService;
+    private bool usingExistingServer;
+    private int serviceVersion;
 
     private string logs = "";
     private Vector2 logScroll;
+    private bool followLogs = true;
 
     // 服务健康检查
     private UnityWebRequest healthRequest;
@@ -67,6 +74,14 @@ public class LuminaTTSEditorWindow : EditorWindow
     private string generatedPath = "";
 
     private Vector2 mainScroll;
+
+    [Serializable]
+    private class HealthResponse
+    {
+        public string status;
+        public string model;
+        public string project_root;
+    }
 
     [Serializable]
     private class TTSRequest
@@ -128,7 +143,83 @@ public class LuminaTTSEditorWindow : EditorWindow
     // 2. 自动启动 Python
     // ============================
 
-    private void StartPythonServer()
+    private async void StartPythonServer()
+    {
+        if (pythonProcess != null || checkingService || serverReady)
+            return;
+
+        checkingService = true;
+        int version = ++serviceVersion;
+        serverStatus = "正在检查已有服务...";
+        Repaint();
+        try
+        {
+            string body = null;
+            using (var handler = new HttpClientHandler { UseProxy = false })
+            using (var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(2) })
+            {
+                try { body = await client.GetStringAsync(ServerUrl + "/health"); }
+                catch (HttpRequestException) { }
+                catch (TaskCanceledException) { }
+            }
+            if (this == null || version != serviceVersion)
+                return;
+
+            if (IsCompatibleHealth(body))
+            {
+                usingExistingServer = true;
+                serverReady = true;
+                serverStatus = "已连接已有 TTS 服务";
+                AppendLog("[READY] 复用本机已有 TTS 服务，不重复加载模型或占用 8001 端口。");
+                AppendLog("已有服务由原启动方管理；关闭此窗口不会停止它，其进程日志不重定向到本窗口。");
+                nextHealthCheck = EditorApplication.timeSinceStartup + 3;
+                return;
+            }
+
+            // 在模型加载前检查端口，绝不关闭不属于本窗口的进程。
+            var probe = new TcpListener(IPAddress.Loopback, 8001);
+            try { probe.Start(); }
+            catch (SocketException)
+            {
+                FailStartup("8001 端口已被占用，但不是可用的本项目 TTS 服务。请检查占用程序后点重新连接。");
+                return;
+            }
+            finally { probe.Stop(); }
+
+            LaunchPythonServer();
+        }
+        catch (Exception ex)
+        {
+            if (this != null && version == serviceVersion)
+                FailStartup(ex.Message);
+        }
+        finally
+        {
+            if (this != null && version == serviceVersion)
+            {
+                checkingService = false;
+                Repaint();
+            }
+        }
+    }
+
+    private bool IsCompatibleHealth(string body)
+    {
+        if (string.IsNullOrEmpty(body)) return false;
+        try
+        {
+            HealthResponse health = JsonUtility.FromJson<HealthResponse>(body);
+            if (health == null || health.status != "ok" || health.model != ExpectedModel)
+                return false;
+            if (string.IsNullOrEmpty(health.project_root)) return true; // 兼容已启动的旧服务。
+            string root = Directory.GetParent(Application.dataPath).FullName;
+            return string.Equals(Path.GetFullPath(root).TrimEnd('\\', '/'),
+                Path.GetFullPath(health.project_root).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
+    private void LaunchPythonServer()
     {
         if (pythonProcess != null)
             return;
@@ -181,9 +272,7 @@ public class LuminaTTSEditorWindow : EditorWindow
 
                 // -u 让 Python 立即输出日志
                 Arguments =
-                    "-u -m uvicorn server_CustomVoice:app " +
-                    "--host 127.0.0.1 " +
-                    "--port 8001 --log-level info",
+                    "-B -u server_CustomVoice.py",
                 //这个就是server_CustomVoice.py所在的文件夹路径。否则 Python 会在 Unity 的工作目录启动，找不到 server_CustomVoice.py。
                 WorkingDirectory = ttsFolder,
                 // 不显示命令行窗口
@@ -261,6 +350,7 @@ public class LuminaTTSEditorWindow : EditorWindow
     private void AppendLog(string message)
     {
         logs += message + "\n";
+        if (followLogs) logScroll.y = float.MaxValue;
 
         // 避免无限累积日志
         if (logs.Length > 30000)
@@ -324,7 +414,7 @@ public class LuminaTTSEditorWindow : EditorWindow
         }
 
         // 轮询健康检查，但不阻塞 Unity
-        if (pythonProcess != null && !serverReady)
+        if (pythonProcess != null || usingExistingServer)
         {
             CheckServerHealth();
         }
@@ -355,17 +445,25 @@ public class LuminaTTSEditorWindow : EditorWindow
             healthRequest.Dispose();
             healthRequest = null;
 
-            if (success && body.Contains("\"ok\""))
+            if (success && IsCompatibleHealth(body))
             {
+                bool becameReady = !serverReady;
                 serverReady = true;
-                serverStatus = "服务已就绪";
+                serverStatus = usingExistingServer ? "已连接已有 TTS 服务" : "服务已就绪";
 
+                if (becameReady)
                 AppendLog(
                     "[READY] TTS 服务已就绪，可以生成语音"
                 );
 
                 Repaint();
                 return;
+            }
+            if (serverReady)
+            {
+                serverReady = false;
+                serverStatus = "服务连接中断，正在重新检查...";
+                Repaint();
             }
         }
 
@@ -393,6 +491,9 @@ public class LuminaTTSEditorWindow : EditorWindow
 
     private void StopPythonServer()
     {
+        ++serviceVersion;
+        checkingService = false;
+        usingExistingServer = false;
         serverReady = false;
 
         if (healthRequest != null)
@@ -409,7 +510,19 @@ public class LuminaTTSEditorWindow : EditorWindow
                 if (!pythonProcess.HasExited)
                 {
                     // 只关闭本窗口持有的进程
-                    pythonProcess.Kill();
+                    // Windows 的虚拟环境 Python 有包装进程，必须同时结束其子进程。
+                    using (var stop = Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "taskkill.exe",
+                        Arguments = "/PID " + pythonProcess.Id + " /T /F",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    }))
+                    {
+                        if (stop == null || !stop.WaitForExit(3000) || stop.ExitCode != 0)
+                            throw new InvalidOperationException("未能停止本窗口的 Python 进程树，请检查日志中的 PID。");
+                    }
                 }
             }
             catch (Exception ex)
@@ -450,6 +563,14 @@ public class LuminaTTSEditorWindow : EditorWindow
         EditorGUILayout.LabelField(
             "Python 服务：" + serverStatus
         );
+        using (new EditorGUI.DisabledScope(checkingService || isGenerating))
+        {
+            if (GUILayout.Button("重新连接 / 启动服务"))
+            {
+                StopPythonServer();
+                StartPythonServer();
+            }
+        }
 
         EditorGUILayout.Space(8);
 
@@ -459,15 +580,16 @@ public class LuminaTTSEditorWindow : EditorWindow
             EditorStyles.boldLabel
         );
 
-        logScroll = EditorGUILayout.BeginScrollView(
-            logScroll,
-            GUILayout.Height(175)
-        );
+        followLogs = EditorGUILayout.ToggleLeft("跟随最新日志（取消后可滚轮查看历史）", followLogs);
+        var logStyle = new GUIStyle(EditorStyles.textArea) { wordWrap = false };
+        Vector2 logSize = logStyle.CalcSize(new GUIContent(logs));
+        logScroll = EditorGUILayout.BeginScrollView(logScroll, false, true, GUILayout.Height(190));
 
         EditorGUILayout.SelectableLabel(
             logs,
-            EditorStyles.textArea,
-            GUILayout.ExpandHeight(true)
+            logStyle,
+            GUILayout.Width(Mathf.Max(logSize.x + 12, position.width - 55)),
+            GUILayout.Height(Mathf.Max(logSize.y + 12, 170))
         );
 
         EditorGUILayout.EndScrollView();
@@ -685,7 +807,7 @@ public class LuminaTTSEditorWindow : EditorWindow
 
         string json = JsonUtility.ToJson(data);
 
-        using (HttpClient client = new HttpClient())
+        using (HttpClient client = new HttpClient(new HttpClientHandler { UseProxy = false }))
         {
             client.Timeout = TimeSpan.FromMinutes(15);
             //HTTP 内容是必须stringcontent类型的，不能直接传json字符串,application/json是其中的一种传输内容的类型

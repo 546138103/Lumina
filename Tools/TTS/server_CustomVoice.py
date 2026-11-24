@@ -1,4 +1,32 @@
 
+# Direct launch reserves the port before importing/loading the large TTS model.
+if __name__ == "__main__":
+    import socket
+    import sys
+
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        listener.bind(("127.0.0.1", 8001))
+        listener.listen(128)
+    except OSError as error:
+        listener.close()
+        print(f"[ERROR] 无法启动 TTS：127.0.0.1:8001 已占用或不可用。{error}", flush=True)
+        sys.exit(3)
+
+    try:
+        import uvicorn
+
+        uvicorn.Server(uvicorn.Config(
+            "server_CustomVoice:app", host="127.0.0.1", port=8001,
+            log_level="info", workers=1,
+        )).run(sockets=[listener])
+    finally:
+        listener.close()
+    sys.exit(0)
+
+import os
 import re
 import shutil
 from pathlib import Path
@@ -154,7 +182,9 @@ def get_unique_output_path(text: str) -> Path:
 def health():
     return {
         "status": "ok",
-        "model": MODEL_NAME
+        "model": MODEL_NAME,
+        "project_root": str(PROJECT_ROOT),
+        "pid": os.getpid(),
     }
 
 

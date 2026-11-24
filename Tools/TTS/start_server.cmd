@@ -1,6 +1,9 @@
 
 @echo off
+setlocal
 cd /d "%~dp0"
+chcp 65001 >nul
+set PYTHONIOENCODING=utf-8
 
 if not exist ".venv\Scripts\python.exe" (
     echo [ERROR] Cannot find Python virtual environment.
@@ -11,7 +14,7 @@ if not exist ".venv\Scripts\python.exe" (
 
 echo Starting Lumina TTS Server...
 
-".venv\Scripts\python.exe" -m uvicorn server:app --host 127.0.0.1 --port 8001
+".venv\Scripts\python.exe" -B -u server_CustomVoice.py
 
 echo.
 echo TTS Server stopped.
