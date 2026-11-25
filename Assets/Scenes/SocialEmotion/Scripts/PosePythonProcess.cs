@@ -36,7 +36,11 @@ public sealed class PosePythonProcess : MonoBehaviour
     {
         while (_logQueue.TryDequeue(out var message))
         {
-            //Debug.Log(message);
+            // 保留每帧诊断 stdout 静默，但不能吞掉 Python 异常。
+            if (message.StartsWith("[PosePython Error]", StringComparison.Ordinal))
+            {
+                Debug.LogWarning(message);
+            }
         }
     }
 

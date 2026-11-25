@@ -72,7 +72,7 @@ class PreviewClient(threading.Thread):
 
         self._disconnect()
 
-    def _take_latest_uframe(self):
+    def _take_latest_frame(self):
         with self._condition:
             if self._latest_frame is None and not self._stop_requested:
                 self._condition.wait(timeout=0.25)
