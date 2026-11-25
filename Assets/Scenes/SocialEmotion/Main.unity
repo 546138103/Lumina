@@ -884,7 +884,7 @@ PlayableDirector:
   m_GameObject: {fileID: 114213511}
   m_Enabled: 1
   serializedVersion: 3
-  m_PlayableAsset: {fileID: 11400000, guid: 802348b600eb8054b99c9bc037a9b0b3, type: 2}
+  m_PlayableAsset: {fileID: 0}
   m_InitialState: 0
   m_WrapMode: 2
   m_DirectorUpdateMode: 1
@@ -1658,9 +1658,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u4EFB\u52A1\uFF1A\n\u9009\u62E9\u6392\u961F\u4F4D\u7F6E"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 522e43ef1f2e80a41861f49a868f6efe, type: 2}
-  m_sharedMaterial: {fileID: -739930338876725281, guid: 522e43ef1f2e80a41861f49a868f6efe,
-    type: 2}
+  m_fontAsset: {fileID: 0}
+  m_sharedMaterial: {fileID: 0}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -5934,9 +5933,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u8BF4\u8BDD\uFF1A\u6211\u53EF\u4EE5\u548C\u4F60\u4E00\u8D77\u73A9\u5417"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: fe9d6bbe02ab19d41928659cf938bf79, type: 2}
-  m_sharedMaterial: {fileID: 9043620216725506935, guid: fe9d6bbe02ab19d41928659cf938bf79,
-    type: 2}
+  m_fontAsset: {fileID: 0}
+  m_sharedMaterial: {fileID: 0}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -7729,7 +7727,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 68bb026fafb42b14791938953eaace77, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_NoiseProfile: {fileID: 11400000, guid: 46965f9cbaf525742a6da4c2172a99cd, type: 2}
+  m_NoiseProfile: {fileID: 0}
   m_PivotOffset: {x: 0, y: 0, z: 1}
   m_AmplitudeGain: 0.5
   m_FrequencyGain: 0.3
@@ -10846,9 +10844,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u6325\u624B\uFF1A\u6253\u62DB\u547C"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: fe9d6bbe02ab19d41928659cf938bf79, type: 2}
-  m_sharedMaterial: {fileID: 9043620216725506935, guid: fe9d6bbe02ab19d41928659cf938bf79,
-    type: 2}
+  m_fontAsset: {fileID: 0}
+  m_sharedMaterial: {fileID: 0}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -11307,9 +11304,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\u7B49\u5F85\uFF1A\u5148\u7B49\u522B\u4EBA\u6253\u5B8C\u7535\u8BDD"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: fe9d6bbe02ab19d41928659cf938bf79, type: 2}
-  m_sharedMaterial: {fileID: 9043620216725506935, guid: fe9d6bbe02ab19d41928659cf938bf79,
-    type: 2}
+  m_fontAsset: {fileID: 0}
+  m_sharedMaterial: {fileID: 0}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -12257,7 +12253,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetAnimator: {fileID: 0}
   handRaisingClip: {fileID: 7400000, guid: 366c4b4c38d28914c9d73f93ee18d383, type: 2}
-  wavingClip: {fileID: 7400000, guid: cd7c30d112b9d8d468faa3450b1ab395, type: 2}
+  wavingClip: {fileID: 0}
 --- !u!114 &1921493579
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -1,106 +1,71 @@
 ﻿
-using System.Diagnostics;
+using System;
 using System.IO;
+using System.Net.Http;
 using System.Text;
 using UnityEngine;
 
+public class TestResource : IDisposable
+{
+    public TestResource()
+    {
+        UnityEngine.Debug.Log("资源创建");
+    }
+
+    public void Work()
+    {
+        UnityEngine.Debug.Log("资源正在使用");
+    }
+
+    public void Dispose()
+    {
+        UnityEngine.Debug.Log("资源释放");
+    }
+}
+
 public class Test : MonoBehaviour
 {
-    private Process process;
 
-    [ContextMenu("1. 启动python")]
-    public void StartNotepad()
-    {
-        if (process != null && !process.HasExited)
+        [ContextMenu("实验：创建多个客户端")]
+        public async void MultipleClient()
         {
-            UnityEngine.Debug.Log("python已经在运行");
-            return;
+            for (int i = 0; i < 20; i++)
+            {
+                using (HttpClient client = new HttpClient(
+                    new HttpClientHandler { UseProxy = false }))
+                {
+                    using (var response = await client.GetAsync(
+                        "http://127.0.0.1:8000/health"))
+                    {
+                        Debug.Log($"请求 {i} 完成");
+                    }
+                }
+            }
         }
 
-        process?.Dispose();
-        string projectRoot =
-    Directory.GetParent(Application.dataPath).FullName;
-        string ttsFolder = Path.Combine(
-       projectRoot, "Tools", "TTS"
-   );
-        string pythonExe = Path.Combine(
-    ttsFolder, ".venv", "Scripts", "python.exe"
-);
-        ProcessStartInfo info = new ProcessStartInfo
-        {
-            FileName = pythonExe,
-            Arguments = "-u test.py",
-            WorkingDirectory = ttsFolder,
-
-            UseShellExecute = false,
-            CreateNoWindow = true,
-
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = Encoding.UTF8,//这个就是stdout
-            StandardErrorEncoding = Encoding.UTF8
-        };
-        info.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
-        process = new Process();
-        process.StartInfo = info;
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (!string.IsNullOrEmpty(e.Data))
-                UnityEngine.Debug.Log("[Python] " + e.Data);
-        };
-
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (!string.IsNullOrEmpty(e.Data))
-                UnityEngine.Debug.LogError("[Python] " + e.Data);
-        };
-
-        process.Start();
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        UnityEngine.Debug.Log(
-            "已启动，PID：" + process.Id
+    private static readonly HttpClient client =
+        new HttpClient(
+            new HttpClientHandler { UseProxy = false }
         );
-    }
 
-    [ContextMenu("2. 查看进程状态")]
-    public void CheckStatus()
+    [ContextMenu("实验：复用客户端")]
+    public async void SingleClient()
     {
-        if (process == null)
+        for (int i = 0; i < 3; i++)
         {
-            UnityEngine.Debug.Log("还没有创建进程");
-            return;
+            using (var response = await client.GetAsync(
+                "http://127.0.0.1:8000/health"))
+            {
+                Debug.Log($"请求 {i} 完成");
+            }
         }
-
-        UnityEngine.Debug.Log(
-            "是否已退出：" + process.HasExited+",进程ID:" + process.Id
-        );
     }
 
-    [ContextMenu("3. 结束python")]
+    [ContextMenu("3方法")]
     public void StopNotepad()
     {
-        if (process == null)
-            return;
 
-        if (!process.HasExited)
-        {
-            process.Kill();
-        }
-
-        process.Dispose();
-        process = null;
-
-        UnityEngine.Debug.Log("已请求结束进程");
     }
 
-    private void OnDestroy()
-    {
-        if (process != null)
-        {
-            process.Dispose();
-            process = null;
-        }
-    }
+
 }

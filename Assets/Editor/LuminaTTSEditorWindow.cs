@@ -162,6 +162,7 @@ public class LuminaTTSEditorWindow : EditorWindow
                 catch (HttpRequestException) { }
                 catch (TaskCanceledException) { }
             }
+            //你打开 TTS 窗口，但是还没等 Python 返回健康检查结果，就关闭了窗口。这时候就会出现下面的情况version != serviceVersion，version = 1,serviceVersion = 2，说明窗口已经被关闭了，直接 return 就行了。
             if (this == null || version != serviceVersion)
                 return;
 
