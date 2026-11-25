@@ -17,6 +17,7 @@ skills-lock.json
 .vscode/
 .idea/
 .venv/
+__pycache__/
 *.csproj
 *.unityproj
 *.sln
