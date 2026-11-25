@@ -16,6 +16,7 @@ skills-lock.json
 .vs/
 .vscode/
 .idea/
+.venv/
 *.csproj
 *.unityproj
 *.sln
@@ -31,6 +32,7 @@ skills-lock.json
 *.opendb
 *.VC.db
 *.pidb
+
 
 # OS
 .DS_Store
