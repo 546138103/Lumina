@@ -97,7 +97,6 @@ public class SocialLessonTaskController : TaskZoneController
     [SerializeField] private IntroductionSpeechLesson introduction;
     public bool UsesStepSuccessFeedback => IsIntroduction;
     private bool IsIntroduction => lessonType == SocialLessonType.Introduction;
-    private bool introductionEntryPending;
 
     private bool startVoiceSession = true;
 
@@ -147,16 +146,7 @@ public class SocialLessonTaskController : TaskZoneController
 
         if (CurrentState == SocialLessonTaskState.Active)
         {
-            if (IsIntroduction)
-            {
-                if (introduction == null || !introduction.Ready) return;
-                if (introductionEntryPending)
-                {
-                    introductionEntryPending = false;
-                    PlayTaskAreaEntryVoice();
-                }
-                TickIdleGuidance();
-            }
+            if (IsIntroduction) TickIdleGuidance();
             TryBeginPreparationFromOccupiedActionArea();
             return;
         }
@@ -209,8 +199,7 @@ public class SocialLessonTaskController : TaskZoneController
             {
                 SetState(SocialLessonTaskState.Active);
                 uiController?.ShowTaskUi(stageIndex, true);
-                if (IsIntroduction) introductionEntryPending = true;
-                else PlayTaskAreaEntryVoice();
+                PlayTaskAreaEntryVoice();
                 onTaskAreaEntered?.Invoke();
             }
 
@@ -352,7 +341,7 @@ public class SocialLessonTaskController : TaskZoneController
     {
         if (IsIntroduction)
         {
-            if (introduction == null || !introduction.Ready || introductionEntryPending) return;
+            if (introduction == null) return;
             BeginSocialInteraction();
             return;
         }
