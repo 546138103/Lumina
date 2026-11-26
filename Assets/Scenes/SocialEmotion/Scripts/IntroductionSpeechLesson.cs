@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
+using System.Text;
 using System.IO;
 using TMPro;
 using UnityEngine;
@@ -16,17 +16,35 @@ public class IntroductionSpeechLesson : MonoBehaviour
     private class Question
     {
         public AudioClip prompt;
+        [InspectorName("人工设置的问题"), TextArea(1, 3)] public string manuallyIssue;
         [InspectorName("Success")] public List<FeedbackEntry> feedback = new List<FeedbackEntry>();
-        [HideInInspector] public TaskNpcSuccessFeedback success;
     }
 
     [SerializeField] private TMP_Text stepScore;
     [SerializeField] private AudioSource promptSource;
     [InspectorName("Arrival Success"), SerializeField] private List<FeedbackEntry> arrivalFeedback = new List<FeedbackEntry>();
-    [HideInInspector, SerializeField] private TaskNpcSuccessFeedback arrivalSuccess;
     [SerializeField] private Question nameQuestion = new Question();
     [SerializeField] private Question ageQuestion = new Question();
     [SerializeField] private Question playQuestion = new Question();
+
+    public const float SilenceTimeoutSeconds = 20f;
+    [SerializeField, HideInInspector] private bool questionsInitialized;
+
+    private void OnValidate()
+    {
+        if (questionsInitialized) return;
+        nameQuestion.manuallyIssue = "你叫什么名字呀？";
+        ageQuestion.manuallyIssue = "你今年几岁啦？";
+        playQuestion.manuallyIssue = "你喜欢玩什么呀？";
+        questionsInitialized = true;
+    }
+
+    [Serializable]
+    private class ListenRequest
+    {
+        public string manually_issue;
+        public float silence_timeout = SilenceTimeoutSeconds;
+    }
 
     [Serializable]
     private class FeedbackEntry
@@ -69,7 +87,6 @@ public class IntroductionSpeechLesson : MonoBehaviour
     private Process worker;
     private ConcurrentQueue<string> messages;
     private Coroutine routine;
-    private TaskNpcSuccessFeedback playingFeedback;
     private string answer;
     private int points;
     public bool Ready { get; private set; }
@@ -126,17 +143,17 @@ public class IntroductionSpeechLesson : MonoBehaviour
     [ContextMenu("重试语音连接（运行时）")]
     public void RetryVoice() { if (Application.isPlaying && isActiveAndEnabled && points < 4) StartSession(); }
 
-    public void Run(Transform player, float interval, Action reminded, Action completed)
+    public void Run(Transform player, Action reminded, Action completed)
     {
-        if (routine == null) routine = StartCoroutine(RunSteps(player, interval, reminded, completed));
+        if (routine == null) routine = StartCoroutine(RunSteps(player, reminded, completed));
     }
 
-    private IEnumerator RunSteps(Transform player, float interval, Action reminded, Action completed)
+    private IEnumerator RunSteps(Transform player, Action reminded, Action completed)
     {
         if (points == 0)
         {
             SetPoints(1);
-            yield return Feedback(arrivalFeedback, arrivalSuccess, player);
+            yield return Feedback(arrivalFeedback, player);
         }
 
         Question[] questions = { nameQuestion, ageQuestion, playQuestion };
@@ -145,6 +162,11 @@ public class IntroductionSpeechLesson : MonoBehaviour
             while (!Ready) yield return null;
             int index = points - 1;
             Question question = questions[index];
+            if (string.IsNullOrWhiteSpace(question.manuallyIssue))
+            {
+                Debug.LogError($"第一关第 {index + 1} 题缺少人工设置的问题，请在 Inspector 填写。", this);
+                yield return new WaitUntil(() => !string.IsNullOrWhiteSpace(question.manuallyIssue));
+            }
             if (question.prompt != null && promptSource != null)
             {
                 promptSource.clip = question.prompt;
@@ -155,8 +177,11 @@ public class IntroductionSpeechLesson : MonoBehaviour
             answer = null;
             try
             {
-                worker.StandardInput.WriteLine(index + " " + interval.ToString(CultureInfo.InvariantCulture));
-                worker.StandardInput.Flush();
+                var request = new ListenRequest { manually_issue = question.manuallyIssue };
+                byte[] line = Encoding.UTF8.GetBytes(JsonUtility.ToJson(request) + "\n");
+                var input = worker.StandardInput.BaseStream;
+                input.Write(line, 0, line.Length);
+                input.Flush();
             }
             catch (Exception ex)
             {
@@ -172,41 +197,32 @@ public class IntroductionSpeechLesson : MonoBehaviour
             }
 
             SetPoints(points + 1);
-            yield return Feedback(question.feedback, question.success, player);
+            yield return Feedback(question.feedback, player);
         }
         routine = null;
         CloseWorker();
         completed();
     }
 
-    private IEnumerator Feedback(List<FeedbackEntry> entries, TaskNpcSuccessFeedback feedback, Transform player)
+    private IEnumerator Feedback(List<FeedbackEntry> entries, Transform player)
     {
-        if (entries != null && entries.Count > 0)
+        if (entries == null) yield break;
+        foreach (var entry in entries)
         {
-            foreach (var entry in entries)
-            {
-                if (entry == null) continue;
-                entry.Begin(player);
-                activeEntries.Add(entry);
-            }
-            while (activeEntries.Count > 0)
-            {
-                yield return null;
-                for (int i = activeEntries.Count - 1; i >= 0; i--)
-                {
-                    if (Time.time < activeEntries[i].finishTime) continue;
-                    activeEntries[i].Restore();
-                    activeEntries.RemoveAt(i);
-                }
-            }
-            yield break;
+            if (entry == null) continue;
+            entry.Begin(player);
+            activeEntries.Add(entry);
         }
-        // Preserve previously serialized component references until inline entries are configured.
-        if (feedback == null) yield break;
-        playingFeedback = feedback;
-        feedback.PlayFeedback(player, null, true);
-        while (feedback.IsPlaying) yield return null;
-        playingFeedback = null;
+        while (activeEntries.Count > 0)
+        {
+            yield return null;
+            for (int i = activeEntries.Count - 1; i >= 0; i--)
+            {
+                if (Time.time < activeEntries[i].finishTime) continue;
+                activeEntries[i].Restore();
+                activeEntries.RemoveAt(i);
+            }
+        }
     }
 
     private void SetPoints(int value)
@@ -222,8 +238,6 @@ public class IntroductionSpeechLesson : MonoBehaviour
         if (promptSource != null) promptSource.Stop();
         for (int i = activeEntries.Count - 1; i >= 0; i--) activeEntries[i].Restore();
         activeEntries.Clear();
-        if (playingFeedback != null) playingFeedback.StopFeedback(false);
-        playingFeedback = null;
         CloseWorker();
         SetPoints(0);
     }

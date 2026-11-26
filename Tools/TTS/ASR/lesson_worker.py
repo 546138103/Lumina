@@ -1,4 +1,5 @@
 """One local child process per lesson. Only fixed status tokens cross stdout."""
+import json
 import os
 import sys
 import threading
@@ -41,18 +42,19 @@ def main():
         signal("CANCELLED")
         return
     from ASR.realtime_asr_test import load_model, recognize, record_sentence
-    from Semantic.introduction import matches_question
+    from Semantic.task_common import evaluate_text
     model = load_model()
     signal("READY")
     while True:
-        index, timeout = commands.get().split()
         try:
-            audio = record_sentence(float(timeout))
+            request = json.loads(commands.get())
+            audio = record_sentence(request["silence_timeout"])
             if audio is None:
                 signal("SILENCE")
                 continue
             text = recognize(audio, model)
-            signal("YES" if text and matches_question(int(index), text, key) else "NO")
+            assessment = evaluate_text(text or "", request["manually_issue"], key)
+            signal(assessment.result.upper())
         except Exception as exc:
             code = getattr(exc, "code", None)
             code = code if isinstance(code, str) and code.isascii() and code.isidentifier() else ""

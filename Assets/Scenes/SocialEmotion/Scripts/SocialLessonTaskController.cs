@@ -420,7 +420,7 @@ public class SocialLessonTaskController : TaskZoneController
             var entrySource = taskAudioSource != null ? taskAudioSource : Camera.main?.GetComponent<AudioSource>();
             entrySource?.Stop();
             SetState(SocialLessonTaskState.SocialActive);
-            introduction.Run(activePlayer.transform, idleGuidanceIntervalSeconds,
+            introduction.Run(activePlayer.transform,
                 () => onIdleNeedsGuidance?.Invoke(),
                 () => BeginCompletion(TaskCompletionMethod.TargetAction));
             return;
