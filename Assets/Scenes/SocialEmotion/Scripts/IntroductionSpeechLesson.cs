@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -15,16 +16,62 @@ public class IntroductionSpeechLesson : MonoBehaviour
     private class Question
     {
         public AudioClip prompt;
-        public TaskNpcSuccessFeedback success;
+        [InspectorName("Success")] public List<FeedbackEntry> feedback = new List<FeedbackEntry>();
+        [HideInInspector] public TaskNpcSuccessFeedback success;
     }
 
     [SerializeField] private TMP_Text stepScore;
     [SerializeField] private AudioSource promptSource;
-    [SerializeField] private TaskNpcSuccessFeedback arrivalSuccess;
+    [InspectorName("Arrival Success"), SerializeField] private List<FeedbackEntry> arrivalFeedback = new List<FeedbackEntry>();
+    [HideInInspector, SerializeField] private TaskNpcSuccessFeedback arrivalSuccess;
     [SerializeField] private Question nameQuestion = new Question();
     [SerializeField] private Question ageQuestion = new Question();
     [SerializeField] private Question playQuestion = new Question();
 
+    [Serializable]
+    private class FeedbackEntry
+    {
+        public Transform target;
+        public string successState;
+        public string restoreState;
+        public AudioClip voice;
+        public AudioSource audioSource;
+        [Min(0f)] public float duration = 2f;
+
+        [NonSerialized] private Animator animator;
+        [NonSerialized] private Quaternion originalRotation;
+        [NonSerialized] private bool turned;
+        [NonSerialized] public float finishTime;
+
+        public void Begin(Transform player)
+        {
+            animator = target != null ? target.GetComponentInChildren<Animator>() : null;
+            if (target != null && player != null)
+            {
+                originalRotation = target.rotation;
+                Vector3 direction = player.position - target.position;
+                direction.y = 0f;
+                turned = direction.sqrMagnitude > 0.0001f;
+                if (turned) target.rotation = Quaternion.LookRotation(direction);
+            }
+            if (animator != null && !string.IsNullOrWhiteSpace(successState))
+                animator.Play(successState, 0, 0f);
+            AudioSource source = audioSource != null ? audioSource : Camera.main?.GetComponent<AudioSource>();
+            if (voice != null && source != null) source.PlayOneShot(voice);
+            finishTime = Time.time + Mathf.Max(duration, voice != null ? voice.length : 0f);
+        }
+
+        public void Restore()
+        {
+            if (animator != null && !string.IsNullOrWhiteSpace(restoreState))
+                animator.Play(restoreState, 0, 0f);
+            if (turned && target != null) target.rotation = originalRotation;
+            turned = false;
+            animator = null;
+        }
+    }
+
+    private readonly List<FeedbackEntry> activeEntries = new List<FeedbackEntry>();
     private Process worker;
     private ConcurrentQueue<string> messages;
     private Coroutine routine;
@@ -95,7 +142,7 @@ public class IntroductionSpeechLesson : MonoBehaviour
         if (points == 0)
         {
             SetPoints(1);
-            yield return Feedback(arrivalSuccess, player);
+            yield return Feedback(arrivalFeedback, arrivalSuccess, player);
         }
 
         Question[] questions = { nameQuestion, ageQuestion, playQuestion };
@@ -131,15 +178,36 @@ public class IntroductionSpeechLesson : MonoBehaviour
             }
 
             SetPoints(points + 1);
-            yield return Feedback(question.success, player);
+            yield return Feedback(question.feedback, question.success, player);
         }
         routine = null;
         CloseWorker();
         completed();
     }
 
-    private IEnumerator Feedback(TaskNpcSuccessFeedback feedback, Transform player)
+    private IEnumerator Feedback(List<FeedbackEntry> entries, TaskNpcSuccessFeedback feedback, Transform player)
     {
+        if (entries != null && entries.Count > 0)
+        {
+            foreach (var entry in entries)
+            {
+                if (entry == null) continue;
+                entry.Begin(player);
+                activeEntries.Add(entry);
+            }
+            while (activeEntries.Count > 0)
+            {
+                yield return null;
+                for (int i = activeEntries.Count - 1; i >= 0; i--)
+                {
+                    if (Time.time < activeEntries[i].finishTime) continue;
+                    activeEntries[i].Restore();
+                    activeEntries.RemoveAt(i);
+                }
+            }
+            yield break;
+        }
+        // Preserve previously serialized component references until inline entries are configured.
         if (feedback == null) yield break;
         playingFeedback = feedback;
         feedback.PlayFeedback(player, null, true);
@@ -158,6 +226,8 @@ public class IntroductionSpeechLesson : MonoBehaviour
         if (routine != null) StopCoroutine(routine);
         routine = null;
         if (promptSource != null) promptSource.Stop();
+        for (int i = activeEntries.Count - 1; i >= 0; i--) activeEntries[i].Restore();
+        activeEntries.Clear();
         if (playingFeedback != null) playingFeedback.StopFeedback(false);
         playingFeedback = null;
         CloseWorker();
