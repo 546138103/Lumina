@@ -125,12 +125,20 @@ public class IntroductionSpeechLesson : MonoBehaviour
     {
         while (messages != null && messages.TryDequeue(out string status))
         {
-            if (status == "READY") Ready = true;
+            if (status == "KEY_REQUIRED") Debug.Log("第一关语音：请在 Lumina 弹窗输入方舟 Key。", this);
+            else if (status == "LOADING") Debug.Log("第一关语音：正在加载本地 SenseVoiceSmall。", this);
+            else if (status == "READY")
+            {
+                Ready = true;
+                Debug.Log("第一关语音：识别已就绪。", this);
+            }
             else if (status.StartsWith("FAULT") || status == "CANCELLED")
             {
                 Debug.LogWarning("第一关语音暂停：" + status + "。修正配置后调用 RetryVoice。", this);
                 CloseWorker();
             }
+            else if (status.StartsWith("ARK ", StringComparison.Ordinal))
+                Debug.Log(status.Substring(4), this);
             else answer = status;
         }
         if (worker != null && worker.HasExited)
@@ -159,7 +167,6 @@ public class IntroductionSpeechLesson : MonoBehaviour
         Question[] questions = { nameQuestion, ageQuestion, playQuestion };
         while (points < 4)
         {
-            while (!Ready) yield return null;
             int index = points - 1;
             Question question = questions[index];
             if (string.IsNullOrWhiteSpace(question.manuallyIssue))
@@ -167,11 +174,12 @@ public class IntroductionSpeechLesson : MonoBehaviour
                 Debug.LogError($"第一关第 {index + 1} 题缺少人工设置的问题，请在 Inspector 填写。", this);
                 yield return new WaitUntil(() => !string.IsNullOrWhiteSpace(question.manuallyIssue));
             }
-            if (question.prompt != null && promptSource != null)
+            yield return PlayPrompt(question.prompt);
+            if (!Ready)
             {
-                promptSource.clip = question.prompt;
-                promptSource.Play();
-                while (promptSource.isPlaying) yield return null;
+                // Re-cue the child once recording is available after a slow start or retry.
+                yield return new WaitUntil(() => Ready);
+                yield return PlayPrompt(question.prompt);
             }
 
             answer = null;
@@ -202,6 +210,14 @@ public class IntroductionSpeechLesson : MonoBehaviour
         routine = null;
         CloseWorker();
         completed();
+    }
+
+    private IEnumerator PlayPrompt(AudioClip clip)
+    {
+        if (clip == null || promptSource == null) yield break;
+        promptSource.clip = clip;
+        promptSource.Play();
+        while (promptSource.isPlaying) yield return null;
     }
 
     private IEnumerator Feedback(List<FeedbackEntry> entries, Transform player)

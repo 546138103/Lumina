@@ -17,8 +17,32 @@ def signal(status):
 
 
 def read_commands(commands):
-    for line in sys.stdin:
-        commands.put(line.strip())
+    # Read the Unity pipe without holding a Windows CRT descriptor lock during
+    # a blocking read. Native audio/ML imports may also inspect the standard fds.
+    if os.name == "nt":
+        import _winapi
+        import msvcrt
+        import time
+        handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+        pending = b""
+        try:
+            while True:
+                available, _ = _winapi.PeekNamedPipe(handle)
+                if not available:
+                    time.sleep(0.1)
+                    continue
+                data, _ = _winapi.ReadFile(handle, min(available, 4096))
+                if not data:
+                    break
+                lines = (pending + data).split(b"\n")
+                pending = lines.pop()
+                for line in lines:
+                    commands.put(line.decode("utf-8").strip())
+        except BrokenPipeError:
+            pass
+    else:
+        for line in sys.stdin:
+            commands.put(line.strip())
     # Parent closed its pipe, including while blocked in audio, HTTP or a dialog.
     os._exit(0)
 
@@ -37,10 +61,12 @@ def ask_key():
 def main():
     commands = Queue()
     threading.Thread(target=read_commands, args=(commands,), daemon=True).start()
+    signal("KEY_REQUIRED")
     key = ask_key()
     if not key:
         signal("CANCELLED")
         return
+    signal("LOADING")
     from ASR.realtime_asr_test import load_model, recognize, record_sentence
     from Semantic.task_common import evaluate_text
     model = load_model()
@@ -54,6 +80,8 @@ def main():
                 continue
             text = recognize(audio, model)
             assessment = evaluate_text(text or "", request["manually_issue"], key)
+            if text and text.strip():
+                signal("ARK " + assessment.model_dump_json(include={"result"}))
             signal(assessment.result.upper())
         except Exception as exc:
             code = getattr(exc, "code", None)
