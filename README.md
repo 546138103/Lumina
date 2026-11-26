@@ -170,3 +170,21 @@ Tools\PosePython\build-runtime.cmd
   ...
 
   不能只发送 Lumina.exe。如果忘记先构建姿态运行时，Unity 会中止 Windows 打包并提示运行 build-runtime.cmd。
+
+### Main 第一关自我介绍（Inspector 接线）
+
+在 `Assets/Scenes/SocialEmotion/Main.unity` 找到挂有 `SocialLessonTaskController` 且 Stage Index 为 0 的 Level1。
+
+1. 在 Level1 添加 `IntroductionSpeechLesson`，把它拖入原任务控制器的 Introduction，Lesson Type 选 Introduction。保留原来的总控、传送点和隔断墙引用。
+2. 大任务区的 TaskZone 设为 TaskArea，粉圈设为 ActionArea，两者的 Task Controller 都指向 Level1。老师“走到粉圈”的成品 AudioClip 拖入 Task Area Entry Voice，Task Audio Source 使用老师的语音 AudioSource。Idle Guidance Interval Seconds 控制行走和沉默提醒间隔。
+3. 在第一关专属 UI 下准备 TMP 文本，拖到 Step Score。组件写入 0/4 到 4/4。原来的星星继续按通关数显示。给 Prompt Source 指定一个非循环的语音 AudioSource。Name Question、Age Question、Play Question 的 Prompt 依次拖入名字、年龄、喜好的提问语音。
+4. 到圈、姓名、年龄、喜好各有一个 Success 引用。拖入场景中的 TaskNpcSuccessFeedback，可共用同一个组件。配置目标 Animator、成功和默认动画状态、成功 AudioClip、AudioSource、动作持续时间。第一关等待动作和语音完成，再开始下一步；最后一步后由总控播放通关星动画并进入第二关。
+5. Play 后在密码弹窗输入方舟 Key。使用已开通的模型，可通过启动 Unity 时继承的 ARK_MODEL 指定，默认 doubao-seed-2-1-lite-260915。错误回答重问，沉默按间隔提醒。方舟或设备故障会暂停当前题并在 Console 显示故障类型；修正后在 IntroductionSpeechLesson 的组件菜单点击“重试语音连接（运行时）”。已获步骤分保留。
+
+Windows 编辑器使用 Tools/TTS/.venv。首次取回仓库时执行 git lfs pull 取得 SenseVoiceSmall 权重。在已有 TTS 虚拟环境安装增量依赖：
+
+```powershell
+.\Tools\TTS\.venv\Scripts\python.exe -m pip install -r Tools/TTS/ASR/requirements.txt -c Tools/TTS/requirements-lock.txt
+```
+
+TTS 编辑器提前生成台词。运行时 Python 子进程通过标准输入输出接收题号和返回判定，只把本题转写文字连同判定提示发给方舟。密钥通过本机密码框输入，保留在进程内。音频在本机处理。此接线用于项目目录中的 Windows 编辑器运行；独立 Player 的 Python 打包尚未验证。

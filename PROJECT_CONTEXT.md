@@ -370,3 +370,7 @@ Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水�
 - `PosePythonProcess` 继续保持每帧 stdout 诊断静默，但将 Python stderr 输出为 Unity Console 警告，避免异常被静默丢弃。
 - 新增不打开摄像头的本机 TCP/JPEG 回归测试：修改前复现线程异常并无法连接；修改后收到完整、可解码且尺寸一致的 JPEG。C# 进程脚本通过编译检查。实际摄像头预览需停止并重新进入 Play Mode，重启 Python 后确认。
 - 本次未修改或提交用户正在编辑的 `Main.unity` 场景。编译检查产物保留在已有的 `Tools/TTS/codex_temp_validation/`，由 Git 忽略。
+
+## 第一关语音任务组件
+
+SocialLessonType.Introduction 复用 TaskArea / ActionArea、姿态模式切换、通关星和传送。IntroductionSpeechLesson 管理进圈和三轮回答的四个步骤分、提示音与可复用成功反馈。第一关在粉圈直接切社交模式，不做准备倒计时。正确只推进当前题，沉默与错误留在当前题，系统异常暂停等待重试。四步完成后由原关卡总控结算一次。老师的语音由编辑器预制，运行时使用共享 TTS Python 环境、本地 SenseVoiceSmall 和方舟直连。已做 C# 编译与本地模型中文样例推理验证，Main 场景接线、真实麦克风和方舟端到端验收由接线后完成。

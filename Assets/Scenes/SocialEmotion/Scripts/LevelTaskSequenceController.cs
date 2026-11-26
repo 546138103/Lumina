@@ -122,7 +122,8 @@ public class LevelTaskSequenceController : MonoBehaviour
         pendingController = controller;
         pendingMethod = method;
         pendingStageIndex = stageIndex;
-        pendingFeedback = stages[stageIndex].successFeedback;
+        pendingFeedback = controller is SocialLessonTaskController lesson && lesson.UsesStepSuccessFeedback
+            ? null : stages[stageIndex].successFeedback;
 
         if (pendingFeedback != null)
         {

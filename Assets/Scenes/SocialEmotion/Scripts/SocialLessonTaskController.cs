@@ -8,7 +8,8 @@ public enum SocialLessonType
 {
     GreetingWave,
     InitiateSpeech,
-    WaitThenRespond
+    WaitThenRespond,
+    Introduction
 }
 
 public enum SocialLessonTaskState
@@ -93,6 +94,13 @@ public class SocialLessonTaskController : TaskZoneController
     private Quaternion conversationNpcOriginalRotation;
     private bool hasConversationNpcOriginalRotation;
 
+    [SerializeField] private IntroductionSpeechLesson introduction;
+    public bool UsesStepSuccessFeedback => IsIntroduction;
+    private bool IsIntroduction => lessonType == SocialLessonType.Introduction;
+    private bool introductionEntryPending;
+
+    private bool startVoiceSession = true;
+
     private void Awake()
     {
         ResolveReferences();
@@ -121,6 +129,11 @@ public class SocialLessonTaskController : TaskZoneController
 
     private void Update()
     {
+        if (IsIntroduction && IsTaskAvailable && startVoiceSession)
+        {
+            startVoiceSession = false;
+            introduction?.StartSession();
+        }
         if (!IsTaskAvailable || activePlayer == null)
         {
             return;
@@ -134,12 +147,22 @@ public class SocialLessonTaskController : TaskZoneController
 
         if (CurrentState == SocialLessonTaskState.Active)
         {
+            if (IsIntroduction)
+            {
+                if (introduction == null || !introduction.Ready) return;
+                if (introductionEntryPending)
+                {
+                    introductionEntryPending = false;
+                    PlayTaskAreaEntryVoice();
+                }
+                TickIdleGuidance();
+            }
             TryBeginPreparationFromOccupiedActionArea();
             return;
         }
 
         if (CurrentState == SocialLessonTaskState.SocialActive &&
-            lessonType != SocialLessonType.WaitThenRespond)
+            !IsIntroduction && lessonType != SocialLessonType.WaitThenRespond)
         {
             TickIdleGuidance();
         }
@@ -186,7 +209,8 @@ public class SocialLessonTaskController : TaskZoneController
             {
                 SetState(SocialLessonTaskState.Active);
                 uiController?.ShowTaskUi(stageIndex, true);
-                PlayTaskAreaEntryVoice();
+                if (IsIntroduction) introductionEntryPending = true;
+                else PlayTaskAreaEntryVoice();
                 onTaskAreaEntered?.Invoke();
             }
 
@@ -237,6 +261,7 @@ public class SocialLessonTaskController : TaskZoneController
 
     public override void CompleteCurrentTaskByTeacher()
     {
+        if (IsIntroduction) return;
         if (!IsTaskAvailable ||
             CurrentState == SocialLessonTaskState.CompletionPending ||
             CurrentState == SocialLessonTaskState.Completed)
@@ -249,6 +274,7 @@ public class SocialLessonTaskController : TaskZoneController
 
     public override void CancelCurrentInteractionByTeacher()
     {
+        if (IsIntroduction) return;
         if (!IsTaskAvailable ||
             CurrentState == SocialLessonTaskState.Completed)
         {
@@ -282,6 +308,7 @@ public class SocialLessonTaskController : TaskZoneController
 
     private void HandlePlayerResponse(PlayerResponseKind response)
     {
+        if (IsIntroduction) return;
         if (!IsTaskAvailable ||
             CurrentState == SocialLessonTaskState.CompletionPending ||
             CurrentState == SocialLessonTaskState.Completed)
@@ -323,6 +350,12 @@ public class SocialLessonTaskController : TaskZoneController
 
     private void BeginPreparation(TaskZone zone)
     {
+        if (IsIntroduction)
+        {
+            if (introduction == null || !introduction.Ready || introductionEntryPending) return;
+            BeginSocialInteraction();
+            return;
+        }
         preparationZone = zone;
         preparationTimer = 0f;
         SetPreparationProgress(0f);
@@ -382,6 +415,16 @@ public class SocialLessonTaskController : TaskZoneController
         idleGuidanceTimer = 0f;
         modeManager?.SetSocialInteractionMode();
         onSocialInteractionStarted?.Invoke();
+        if (IsIntroduction)
+        {
+            var entrySource = taskAudioSource != null ? taskAudioSource : Camera.main?.GetComponent<AudioSource>();
+            entrySource?.Stop();
+            SetState(SocialLessonTaskState.SocialActive);
+            introduction.Run(activePlayer.transform, idleGuidanceIntervalSeconds,
+                () => onIdleNeedsGuidance?.Invoke(),
+                () => BeginCompletion(TaskCompletionMethod.TargetAction));
+            return;
+        }
 
         if (lessonType == SocialLessonType.WaitThenRespond)
         {
@@ -405,7 +448,8 @@ public class SocialLessonTaskController : TaskZoneController
         }
 
         idleGuidanceTimer = 0f;
-        PlayVoice(idleGuidanceVoice);
+        if (IsIntroduction) PlayTaskAreaEntryVoice();
+        else PlayVoice(idleGuidanceVoice);
         onIdleNeedsGuidance?.Invoke();
     }
 
@@ -578,6 +622,11 @@ public class SocialLessonTaskController : TaskZoneController
 
     protected override void OnSequenceReset()
     {
+        if (IsIntroduction)
+        {
+            introduction?.EndSession();
+            startVoiceSession = true;
+        }
         ResetRuntimeState(false);
     }
 

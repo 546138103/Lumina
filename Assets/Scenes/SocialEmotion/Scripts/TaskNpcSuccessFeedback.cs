@@ -30,9 +30,14 @@ public class TaskNpcSuccessFeedback : MonoBehaviour
 
     public void PlayFeedback(Transform player, Action onCompleted)
     {
+        PlayFeedback(player, onCompleted, false);
+    }
+
+    public void PlayFeedback(Transform player, Action onCompleted, bool waitForVoice)
+    {
         StopFeedback(false);
         completionCallback = onCompleted;
-        feedbackRoutine = StartCoroutine(FeedbackRoutine(player));
+        feedbackRoutine = StartCoroutine(FeedbackRoutine(player, waitForVoice));
     }
 
     public void StopFeedback(bool invokeCompletion)
@@ -58,7 +63,7 @@ public class TaskNpcSuccessFeedback : MonoBehaviour
         StopFeedback(false);
     }
 
-    private IEnumerator FeedbackRoutine(Transform suppliedPlayer)
+    private IEnumerator FeedbackRoutine(Transform suppliedPlayer, bool waitForVoice)
     {
         activeNpc = ResolveNpcTransform();
         Transform player = suppliedPlayer != null
@@ -80,9 +85,10 @@ public class TaskNpcSuccessFeedback : MonoBehaviour
 
         PlayVoice(successVoice);
 
-        if (successDuration > 0f)
+        float duration = waitForVoice && successVoice != null ? Mathf.Max(successDuration, successVoice.length) : successDuration;
+        if (duration > 0f)
         {
-            yield return new WaitForSeconds(successDuration);
+            yield return new WaitForSeconds(duration);
         }
         else
         {
