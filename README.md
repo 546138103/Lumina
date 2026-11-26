@@ -178,7 +178,7 @@ Tools\PosePython\build-runtime.cmd
 1. 在 Level1 添加 `IntroductionSpeechLesson`，把它拖入原任务控制器的 Introduction，Lesson Type 选 Introduction。保留原来的总控、传送点和隔断墙引用。
 2. 大任务区的 TaskZone 设为 TaskArea，粉圈设为 ActionArea，两者的 Task Controller 都指向 Level1。老师“走到粉圈”的成品 AudioClip 拖入 Task Area Entry Voice，Task Audio Source 使用老师的语音 AudioSource。Idle Guidance Interval Seconds 控制行走和沉默提醒间隔。
 3. 在第一关专属 UI 下准备 TMP 文本，拖到 Step Score。组件写入 0/4 到 4/4。原来的星星继续按通关数显示。给 Prompt Source 指定一个非循环的语音 AudioSource。Name Question、Age Question、Play Question 的 Prompt 依次拖入名字、年龄、喜好的提问语音。
-4. 展开 Arrival Success 或每道题的 Success 列表，点 + 添加反馈，在条目内填写目标角色、成功动作、恢复动作、语音、音源和持续时间。多个角色的条目同时开始，每个角色在自己的反馈结束时恢复。全部结束后才进入下一步；最后一步接通关星和切关。空列表可以直接跳过，已有旧组件引用的步骤会沿用旧配置。
+4. 展开 Arrival Success 或每道题的 Success 列表，点 + 添加反馈，在条目内填写Target、语音、音源和持续时间。多个条目同时开始，各自在 Target 或其子物体上查找 Animator 并触发一次 TriggerSuccess。成功动作及返回过渡在 Animator Controller 内配置。全部结束后才进入下一步；最后一步接通关星和切关。空列表可以直接跳过，已有旧组件引用的步骤会沿用旧配置。
 5. Play 后在密码弹窗输入方舟 Key。使用已开通的模型，可通过启动 Unity 时继承的 ARK_MODEL 指定，默认 doubao-seed-2-1-lite-260915。错误回答重问，沉默按间隔提醒。方舟或设备故障会暂停当前题并在 Console 显示故障类型；修正后在 IntroductionSpeechLesson 的组件菜单点击“重试语音连接（运行时）”。已获步骤分保留。
 
 Windows 编辑器使用 Tools/TTS/.venv。首次取回仓库时执行 git lfs pull 取得 SenseVoiceSmall 权重。在已有 TTS 虚拟环境安装增量依赖：

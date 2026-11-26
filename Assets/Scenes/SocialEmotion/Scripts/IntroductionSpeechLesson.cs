@@ -32,20 +32,18 @@ public class IntroductionSpeechLesson : MonoBehaviour
     private class FeedbackEntry
     {
         public Transform target;
-        public string successState;
-        public string restoreState;
+        private static readonly int SuccessTrigger = Animator.StringToHash("TriggerSuccess");
         public AudioClip voice;
         public AudioSource audioSource;
         [Min(0f)] public float duration = 2f;
 
-        [NonSerialized] private Animator animator;
         [NonSerialized] private Quaternion originalRotation;
         [NonSerialized] private bool turned;
         [NonSerialized] public float finishTime;
 
         public void Begin(Transform player)
         {
-            animator = target != null ? target.GetComponentInChildren<Animator>() : null;
+            Animator animator = target != null ? target.GetComponentInChildren<Animator>() : null;
             if (target != null && player != null)
             {
                 originalRotation = target.rotation;
@@ -54,8 +52,7 @@ public class IntroductionSpeechLesson : MonoBehaviour
                 turned = direction.sqrMagnitude > 0.0001f;
                 if (turned) target.rotation = Quaternion.LookRotation(direction);
             }
-            if (animator != null && !string.IsNullOrWhiteSpace(successState))
-                animator.Play(successState, 0, 0f);
+            if (animator != null) animator.SetTrigger(SuccessTrigger);
             AudioSource source = audioSource != null ? audioSource : Camera.main?.GetComponent<AudioSource>();
             if (voice != null && source != null) source.PlayOneShot(voice);
             finishTime = Time.time + Mathf.Max(duration, voice != null ? voice.length : 0f);
@@ -63,11 +60,8 @@ public class IntroductionSpeechLesson : MonoBehaviour
 
         public void Restore()
         {
-            if (animator != null && !string.IsNullOrWhiteSpace(restoreState))
-                animator.Play(restoreState, 0, 0f);
             if (turned && target != null) target.rotation = originalRotation;
             turned = false;
-            animator = null;
         }
     }
 
