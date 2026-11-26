@@ -350,6 +350,13 @@ public class LuminaTTSEditorWindow : EditorWindow
 
     private void AppendLog(string message)
     {
+        if (string.IsNullOrEmpty(message))
+            return;
+
+        // 过滤成功的健康检查日志
+        if (message.Contains("GET /health") &&
+            message.Contains("200 OK"))
+            return;
         logs += message + "\n";
         if (followLogs) logScroll.y = float.MaxValue;
 
@@ -582,15 +589,19 @@ public class LuminaTTSEditorWindow : EditorWindow
         );
 
         followLogs = EditorGUILayout.ToggleLeft("跟随最新日志（取消后可滚轮查看历史）", followLogs);
-        var logStyle = new GUIStyle(EditorStyles.textArea) { wordWrap = false };
+        var logStyle = new GUIStyle(EditorStyles.textArea) { wordWrap = true };
         Vector2 logSize = logStyle.CalcSize(new GUIContent(logs));
-        logScroll = EditorGUILayout.BeginScrollView(logScroll, false, true, GUILayout.Height(190));
+        logScroll = EditorGUILayout.BeginScrollView(
+            logScroll,
+            false,
+            true, 
+            GUILayout.Height(350));
 
         EditorGUILayout.SelectableLabel(
             logs,
             logStyle,
             GUILayout.Width(Mathf.Max(logSize.x + 12, position.width - 55)),
-            GUILayout.Height(Mathf.Max(logSize.y + 12, 170))
+            GUILayout.Height(Mathf.Max(logSize.y + 12, 330))
         );
 
         EditorGUILayout.EndScrollView();

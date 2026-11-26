@@ -30,6 +30,13 @@ import os
 import re
 import shutil
 from pathlib import Path
+
+sox_dir = Path(__file__).resolve().parent / "sox-14-4-2"
+
+os.environ["PATH"] = (
+    str(sox_dir) + os.pathsep + os.environ["PATH"]
+)
+
 from threading import Lock
 from uuid import uuid4
 
