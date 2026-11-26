@@ -27,11 +27,13 @@ LANGUAGE = "auto"        # 自动识别普通话/粤语等
 
 # ========== 2. 加载 SenseVoiceSmall ==========
 
-def load_model():
+def load_model(on_weights_loading=None):
     from funasr import AutoModel
     if not MODEL_DIR.is_dir():
         raise FileNotFoundError(f"模型目录不存在：{MODEL_DIR}")
     print("正在加载 SenseVoiceSmall...")
+    if on_weights_loading is not None:
+        on_weights_loading()
     loaded = AutoModel(model=str(MODEL_DIR), device="cpu", disable_update=True)
     print("模型加载完成！")
     return loaded

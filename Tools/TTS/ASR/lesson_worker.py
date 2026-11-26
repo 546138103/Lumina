@@ -69,7 +69,7 @@ def main():
     signal("LOADING")
     from ASR.realtime_asr_test import load_model, recognize, record_sentence
     from Semantic.task_common import evaluate_text
-    model = load_model()
+    model = load_model(lambda: signal("LOADING_WEIGHTS"))
     signal("READY")
     while True:
         try:

@@ -87,6 +87,7 @@ public class IntroductionSpeechLesson : MonoBehaviour
     private Process worker;
     private ConcurrentQueue<string> messages;
     private Coroutine routine;
+    private float modelLoadStarted;
     private string answer;
     private int points;
     public bool Ready { get; private set; }
@@ -126,11 +127,17 @@ public class IntroductionSpeechLesson : MonoBehaviour
         while (messages != null && messages.TryDequeue(out string status))
         {
             if (status == "KEY_REQUIRED") Debug.Log("第一关语音：请在 Lumina 弹窗输入方舟 Key。", this);
-            else if (status == "LOADING") Debug.Log("第一关语音：正在加载本地 SenseVoiceSmall。", this);
+            else if (status == "LOADING")
+            {
+                modelLoadStarted = Time.realtimeSinceStartup;
+                Debug.Log("SenseVoiceSmall 开始加载：正在初始化 Python 识别库。", this);
+            }
+            else if (status == "LOADING_WEIGHTS")
+                Debug.Log("SenseVoiceSmall 识别库已就绪，开始加载本地模型权重。", this);
             else if (status == "READY")
             {
                 Ready = true;
-                Debug.Log("第一关语音：识别已就绪。", this);
+                Debug.Log($"SenseVoiceSmall 加载完成，语音识别已就绪（耗时 {Time.realtimeSinceStartup - modelLoadStarted:F1} 秒）。", this);
             }
             else if (status.StartsWith("FAULT") || status == "CANCELLED")
             {
