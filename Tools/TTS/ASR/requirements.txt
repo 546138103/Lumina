@@ -1,4 +1,9 @@
 funasr==1.4.16
+numpy==2.5.4
+torch==2.14.1
+torchaudio==2.11.0
 sounddevice==0.5.3
+soundfile==0.14.0
 openai==3.29.0
+pydantic==2.14.1
 pywin32==312; sys_platform == 'win32'
