@@ -52,7 +52,6 @@ public class IntroductionSpeechLesson : MonoBehaviour
         public Transform target;
         private static readonly int SuccessTrigger = Animator.StringToHash("TriggerSuccess");
         public AudioClip voice;
-        public AudioSource audioSource;
         [Min(0f)] public float duration = 2f;
 
         [NonSerialized] private Quaternion originalRotation;
@@ -89,7 +88,7 @@ public class IntroductionSpeechLesson : MonoBehaviour
                 }
             }
             if (animator != null) animator.SetTrigger(SuccessTrigger);
-            AudioSource source = audioSource != null ? audioSource : Camera.main?.GetComponent<AudioSource>();
+            AudioSource source = Camera.main?.GetComponent<AudioSource>();
             if (voice != null && source != null) source.PlayOneShot(voice);
             finishTime = Time.time + Mathf.Max(duration, voice != null ? voice.length : 0f);
         }

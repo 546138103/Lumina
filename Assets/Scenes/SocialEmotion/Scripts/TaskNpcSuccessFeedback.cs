@@ -5,13 +5,12 @@ using UnityEngine;
 
 public class TaskNpcSuccessFeedback : MonoBehaviour
 {
-    [Header("NPC")]
-    [SerializeField] private Animator npcAnimator;
-    [Tooltip("可选；不填写时使用 Animator 所在 Transform。")]
-    [SerializeField] private Transform npcTransform;
-    [Tooltip("可选；不填写时由总控传入或自动查找玩家。")]
-    [SerializeField] private Transform playerTransform;
+    
 
+    [Header("NPC")]
+    [SerializeField] private Transform npcTransform;
+    private Transform playerTransform;
+    private Animator npcAnimator;
     [Header("成功反馈")]
     [SerializeField] private string defaultAnimationState;
     [SerializeField] private string successAnimationState = "Waving";
@@ -28,6 +27,10 @@ public class TaskNpcSuccessFeedback : MonoBehaviour
 
     public bool IsPlaying => feedbackRoutine != null;
 
+    private void Start() {
+        playerTransform = ThirdPersonController.Instance.GetComponent<Transform>();
+        npcAnimator = npcTransform.GetComponent<Animator>();
+    }
     public void PlayFeedback(Transform player, Action onCompleted)
     {
         PlayFeedback(player, onCompleted, false);

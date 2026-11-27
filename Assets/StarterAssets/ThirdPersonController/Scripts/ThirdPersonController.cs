@@ -122,9 +122,10 @@ namespace StarterAssets
             }
         }
 
-
+        public static ThirdPersonController Instance { get; private set; }
         private void Awake()
         {
+            Instance = this;
             // get a reference to our main camera
             if (_mainCamera == null)
             {
@@ -383,7 +384,11 @@ namespace StarterAssets
                 new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z),
                 GroundedRadius);
         }
-
+        private void OnDestroy() {
+            if (Instance == this) {
+                Instance = null;
+            }
+        }
         private void OnFootstep(AnimationEvent animationEvent)
         {
             if (animationEvent.animatorClipInfo.weight > 0.5f)
