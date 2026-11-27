@@ -56,6 +56,7 @@ public class IntroductionSpeechLesson : MonoBehaviour
         [Min(0f)] public float duration = 2f;
 
         [NonSerialized] private Quaternion originalRotation;
+        [NonSerialized] private Vector3 originalLocalPosition;
         [NonSerialized] private bool turned;
         [NonSerialized] public float finishTime;
 
@@ -65,10 +66,27 @@ public class IntroductionSpeechLesson : MonoBehaviour
             if (target != null && player != null)
             {
                 originalRotation = target.rotation;
-                Vector3 direction = player.position - target.position;
-                direction.y = 0f;
-                turned = direction.sqrMagnitude > 0.0001f;
-                if (turned) target.rotation = Quaternion.LookRotation(direction);
+                originalLocalPosition = target.localPosition;
+                // A character wrapper may contain a model rotated relative to its Animator.
+                Transform facing = target;
+                if (animator != null && animator.isHuman)
+                {
+                    Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
+                    if (hips != null && hips.IsChildOf(target) && hips.parent != target && hips != target)
+                    {
+                        Transform model = hips;
+                        while (model.parent != target) model = model.parent;
+                        facing = model;
+                    }
+                }
+                Vector3 direction = Vector3.ProjectOnPlane(player.position - facing.position, Vector3.up);
+                Vector3 forward = Vector3.ProjectOnPlane(facing.forward, Vector3.up);
+                turned = direction.sqrMagnitude > 0.0001f && forward.sqrMagnitude > 0.0001f;
+                if (turned)
+                {
+                    float yaw = Vector3.SignedAngle(forward, direction, Vector3.up);
+                    target.RotateAround(facing.position, Vector3.up, yaw);
+                }
             }
             if (animator != null) animator.SetTrigger(SuccessTrigger);
             AudioSource source = audioSource != null ? audioSource : Camera.main?.GetComponent<AudioSource>();
@@ -78,7 +96,11 @@ public class IntroductionSpeechLesson : MonoBehaviour
 
         public void Restore()
         {
-            if (turned && target != null) target.rotation = originalRotation;
+            if (turned && target != null)
+            {
+                target.rotation = originalRotation;
+                target.localPosition = originalLocalPosition;
+            }
             turned = false;
         }
     }
