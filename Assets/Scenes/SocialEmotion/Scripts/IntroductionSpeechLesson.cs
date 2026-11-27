@@ -22,7 +22,7 @@ public class IntroductionSpeechLesson : MonoBehaviour
     }
 
     [SerializeField] private TMP_Text stepScore;
-    [SerializeField] private AudioSource promptSource;
+    private AudioSource promptSource;
     [InspectorName("Arrival Success"), SerializeField] private List<FeedbackEntry> arrivalFeedback = new List<FeedbackEntry>();
     [Serializable]
     private class GestureStep
@@ -37,6 +37,10 @@ public class IntroductionSpeechLesson : MonoBehaviour
     private bool acceptingWave;
     private bool waveReceived;
 
+    private void Awake()
+    {
+        promptSource = Camera.main?.GetComponent<AudioSource>();
+    }
     public void NotifyWave()
     {
         if (acceptingWave) waveReceived = true;
