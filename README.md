@@ -181,10 +181,10 @@ Tools\PosePython\build-runtime.cmd
 4. Arrival Success、挥手打招呼和自我介绍各有独立反馈列表。点击 + 配置角色、语音和持续时间。每步成功加 1 分；任一只手触发 WaveInvite 即完成挥手，一次回答包含姓名、年龄、喜好中的任何一项即完成自我介绍。最后一组反馈结束后由原总控发通关星并切关。
 5. 首次 Play 时在密码弹窗输入方舟 Key，以后由同一 Windows 用户自动读取。方舟返回身份验证失败时会重新提示输入。使用已开通的模型，可通过启动 Unity 时继承的 ARK_MODEL 指定，默认 doubao-seed-2-1-lite-260915。错误回答重问，沉默按间隔提醒。方舟或设备故障会暂停当前题并在 Console 显示故障类型；修正后在 IntroductionSpeechLesson 的组件菜单点击“重试语音连接（运行时）”。已获步骤分保留。
 
-Windows 编辑器使用 Tools/TTS/.venv。首次取回仓库时执行 git lfs pull 取得 SenseVoiceSmall 权重。在已有 TTS 虚拟环境安装增量依赖：
+Windows 编辑器使用 Tools/TTS/.venv。首次取回仓库时执行 git lfs pull 取得 SenseVoiceSmall 权重。在项目根目录运行以下命令，为共享虚拟环境安装 TTS、ASR 和语义判断的依赖。
 
 ```powershell
-.\Tools\TTS\.venv\Scripts\python.exe -m pip install -r Tools/TTS/ASR/requirements.txt -c Tools/TTS/requirements-lock.txt
+.\Tools\TTS\.venv\Scripts\python.exe -m pip install -r Tools/TTS/requirements-lock.txt
 ```
 
 TTS 编辑器提前生成台词。运行时 Python 子进程通过标准输入输出接收题号和返回判定，只把本题转写文字连同判定提示发给方舟。密钥保存在 Windows 凭据管理器的「Windows 凭据 → 普通凭据 → Lumina/Ark/APIKey」。删除此项后，下次启动会重新询问。音频在本机处理。此接线用于项目目录中的 Windows 编辑器运行；独立 Player 的 Python 打包尚未验证。
