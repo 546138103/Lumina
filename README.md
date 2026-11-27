@@ -179,7 +179,7 @@ Tools\PosePython\build-runtime.cmd
 2. 大任务区的 TaskZone 设为 TaskArea，粉圈设为 ActionArea，两者的 Task Controller 都指向 Level1。老师“走到粉圈”的成品 AudioClip 拖入 Task Area Entry Voice，Task Audio Source 使用老师的语音 AudioSource。提示播完后检查圈内站位。Idle Guidance Interval Seconds 控制行走和挥手提醒间隔。语音开口等待统一为 20 秒。
 3. 在第一关专属 UI 下准备 TMP 文本，拖到 Step Score。组件写入 0/3 到 3/3。原来的星星继续按通关数显示。给 Prompt Source 指定一个非循环的语音 AudioSource。「挥手打招呼」的 Prompt 拖入挥手引导，「自我介绍」的 Prompt 拖入整句提问音频，核对「人工设置的问题」。每段提示播完才接受相应的站位、挥手或语音。
 4. Arrival Success、挥手打招呼和自我介绍各有独立反馈列表。点击 + 配置角色、语音和持续时间。每步成功加 1 分；任一只手触发 WaveInvite 即完成挥手，一次回答包含姓名、年龄、喜好中的任何一项即完成自我介绍。最后一组反馈结束后由原总控发通关星并切关。
-5. Play 后在密码弹窗输入方舟 Key。使用已开通的模型，可通过启动 Unity 时继承的 ARK_MODEL 指定，默认 doubao-seed-2-1-lite-260915。错误回答重问，沉默按间隔提醒。方舟或设备故障会暂停当前题并在 Console 显示故障类型；修正后在 IntroductionSpeechLesson 的组件菜单点击“重试语音连接（运行时）”。已获步骤分保留。
+5. 首次 Play 时在密码弹窗输入方舟 Key，以后由同一 Windows 用户自动读取。方舟返回身份验证失败时会重新提示输入。使用已开通的模型，可通过启动 Unity 时继承的 ARK_MODEL 指定，默认 doubao-seed-2-1-lite-260915。错误回答重问，沉默按间隔提醒。方舟或设备故障会暂停当前题并在 Console 显示故障类型；修正后在 IntroductionSpeechLesson 的组件菜单点击“重试语音连接（运行时）”。已获步骤分保留。
 
 Windows 编辑器使用 Tools/TTS/.venv。首次取回仓库时执行 git lfs pull 取得 SenseVoiceSmall 权重。在已有 TTS 虚拟环境安装增量依赖：
 
@@ -187,4 +187,4 @@ Windows 编辑器使用 Tools/TTS/.venv。首次取回仓库时执行 git lfs pu
 .\Tools\TTS\.venv\Scripts\python.exe -m pip install -r Tools/TTS/ASR/requirements.txt -c Tools/TTS/requirements-lock.txt
 ```
 
-TTS 编辑器提前生成台词。运行时 Python 子进程通过标准输入输出接收题号和返回判定，只把本题转写文字连同判定提示发给方舟。密钥通过本机密码框输入，保留在进程内。音频在本机处理。此接线用于项目目录中的 Windows 编辑器运行；独立 Player 的 Python 打包尚未验证。
+TTS 编辑器提前生成台词。运行时 Python 子进程通过标准输入输出接收题号和返回判定，只把本题转写文字连同判定提示发给方舟。密钥保存在 Windows 凭据管理器的「Windows 凭据 → 普通凭据 → Lumina/Ark/APIKey」。删除此项后，下次启动会重新询问。音频在本机处理。此接线用于项目目录中的 Windows 编辑器运行；独立 Player 的 Python 打包尚未验证。

@@ -1,3 +1,4 @@
 funasr==1.4.16
 sounddevice==0.5.3
 openai==3.29.0
+pywin32==312; sys_platform == 'win32'

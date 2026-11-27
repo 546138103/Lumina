@@ -58,17 +58,44 @@ def ask_key():
         root.destroy()
 
 
+CREDENTIAL_TARGET = "Lumina/Ark/APIKey"
+
+
+def get_key(replace=False):
+    import pywintypes
+    import win32cred
+
+    if not replace:
+        try:
+            credential = win32cred.CredRead(CREDENTIAL_TARGET, win32cred.CRED_TYPE_GENERIC)
+            return credential["CredentialBlob"].decode("utf-16-le")
+        except pywintypes.error as exc:
+            if exc.winerror != 1168:  # ERROR_NOT_FOUND
+                raise
+
+    signal("KEY_REQUIRED")
+    key = ask_key()
+    if key:
+        win32cred.CredWrite({
+            "Type": win32cred.CRED_TYPE_GENERIC,
+            "TargetName": CREDENTIAL_TARGET,
+            "CredentialBlob": key,
+            "Persist": win32cred.CRED_PERSIST_LOCAL_MACHINE,
+        })
+    return key
+
+
 def main():
     commands = Queue()
     threading.Thread(target=read_commands, args=(commands,), daemon=True).start()
-    signal("KEY_REQUIRED")
-    key = ask_key()
+    key = get_key()
     if not key:
         signal("CANCELLED")
         return
     signal("LOADING")
     from ASR.realtime_asr_test import load_model, recognize, record_sentence
     from Semantic.task_common import evaluate_text
+    from openai import AuthenticationError
     model = load_model(lambda: signal("LOADING_WEIGHTS"))
     signal("READY")
     while True:
@@ -79,7 +106,14 @@ def main():
                 signal("SILENCE")
                 continue
             text = recognize(audio, model)
-            assessment = evaluate_text(text or "", request["manually_issue"], key)
+            try:
+                assessment = evaluate_text(text or "", request["manually_issue"], key)
+            except AuthenticationError:
+                key = get_key(replace=True)
+                if not key:
+                    signal("CANCELLED")
+                    return
+                assessment = evaluate_text(text or "", request["manually_issue"], key)
             if text and text.strip():
                 signal("ARK " + assessment.model_dump_json(include={"result"}))
             signal(assessment.result.upper())
