@@ -98,6 +98,10 @@ public class SocialLessonTaskController : TaskZoneController
     public bool UsesStepSuccessFeedback => IsIntroduction;
     private bool IsIntroduction => lessonType == SocialLessonType.Introduction;
 
+    private AudioSource introductionEntrySource;
+    private bool EntryPromptPlaying => introductionEntrySource != null &&
+        introductionEntrySource.clip == taskAreaEntryVoice && introductionEntrySource.isPlaying;
+
     private bool startVoiceSession = true;
 
     private void Awake()
@@ -146,8 +150,9 @@ public class SocialLessonTaskController : TaskZoneController
 
         if (CurrentState == SocialLessonTaskState.Active)
         {
-            if (IsIntroduction) TickIdleGuidance();
+            if (IsIntroduction && EntryPromptPlaying) return;
             TryBeginPreparationFromOccupiedActionArea();
+            if (IsIntroduction && CurrentState == SocialLessonTaskState.Active) TickIdleGuidance();
             return;
         }
 
@@ -240,6 +245,7 @@ public class SocialLessonTaskController : TaskZoneController
             return;
         }
 
+        if (IsIntroduction && EntryPromptPlaying) introductionEntrySource.Stop();
         ResetRuntimeState(true);
     }
 
@@ -291,7 +297,10 @@ public class SocialLessonTaskController : TaskZoneController
     {
         if (intent == SocialIntent.WaveInvite)
         {
-            HandlePlayerResponse(PlayerResponseKind.Wave);
+            if (IsIntroduction && IsTaskAvailable && CurrentState == SocialLessonTaskState.SocialActive)
+                introduction?.NotifyWave();
+            else
+                HandlePlayerResponse(PlayerResponseKind.Wave);
         }
     }
 
@@ -341,7 +350,7 @@ public class SocialLessonTaskController : TaskZoneController
     {
         if (IsIntroduction)
         {
-            if (introduction == null) return;
+            if (introduction == null || EntryPromptPlaying) return;
             BeginSocialInteraction();
             return;
         }
@@ -406,10 +415,8 @@ public class SocialLessonTaskController : TaskZoneController
         onSocialInteractionStarted?.Invoke();
         if (IsIntroduction)
         {
-            var entrySource = taskAudioSource != null ? taskAudioSource : Camera.main?.GetComponent<AudioSource>();
-            entrySource?.Stop();
             SetState(SocialLessonTaskState.SocialActive);
-            introduction.Run(activePlayer.transform,
+            introduction.Run(activePlayer.transform, idleGuidanceIntervalSeconds,
                 () => onIdleNeedsGuidance?.Invoke(),
                 () => BeginCompletion(TaskCompletionMethod.TargetAction));
             return;
@@ -751,6 +758,17 @@ public class SocialLessonTaskController : TaskZoneController
 
     private void PlayTaskAreaEntryVoice()
     {
+        if (IsIntroduction)
+        {
+            introductionEntrySource = taskAudioSource != null ? taskAudioSource : Camera.main?.GetComponent<AudioSource>();
+            if (introductionEntrySource != null && taskAreaEntryVoice != null)
+            {
+                introductionEntrySource.clip = taskAreaEntryVoice;
+                introductionEntrySource.loop = false;
+                introductionEntrySource.Play();
+            }
+            return;
+        }
         float now = Time.unscaledTime;
         if (now - lastTaskAreaEntryVoiceTime <
             taskAreaEntryVoiceCooldownSeconds)

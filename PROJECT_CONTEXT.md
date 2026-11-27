@@ -373,6 +373,6 @@ Python 端的 OpenCV 独立预览窗口默认关闭。预览画面仍保持水�
 
 ## 第一关语音任务组件
 
-SocialLessonType.Introduction 复用 TaskArea / ActionArea、姿态模式切换、通关星和传送。IntroductionSpeechLesson 管理进圈和三轮回答的四个步骤分、提示音与可复用成功反馈。第一关在粉圈直接切社交模式，不做准备倒计时。正确只推进当前题，沉默与错误留在当前题，系统异常暂停等待重试。四步完成后由原关卡总控结算一次。老师的语音由编辑器预制，运行时使用共享 TTS Python 环境、本地 SenseVoiceSmall 和方舟直连。已做 C# 编译与本地模型中文样例推理验证，Main 场景接线、真实麦克风和方舟端到端验收由接线后完成。
+SocialLessonType.Introduction 复用 TaskArea / ActionArea、姿态模式切换、通关星和传送。IntroductionSpeechLesson 管理进圈、挥手和一轮自我介绍的三个步骤分、提示音与可复用成功反馈。第一关在粉圈直接切社交模式，不做准备倒计时。正确只推进当前题，沉默与错误留在当前题，系统异常暂停等待重试。三步完成后由原关卡总控结算一次。老师的语音由编辑器预制，运行时使用共享 TTS Python 环境、本地 SenseVoiceSmall 和方舟直连。已做 C# 编译与本地模型中文样例推理验证，Main 场景接线、真实麦克风和方舟端到端验收由接线后完成。
 
 第一关的反馈角色可使用带旋转或偏移的模型子物体。人形 Animator 根据髋骨层级定位角色模型，绕模型位置在水平面转向玩家，结束时恢复根物体的位置和旋转。JackieCtr、SitCtr、TySitting 的 TriggerSuccess 进入过渡立即响应，返回过渡由动画机控制。在当前 Unity 编辑器的独立预览场景用 Main 的 Jackie、Amy、Ty、AJ 副本验证，四个角色均在第一个 1/60 秒动画更新进入鼓掌，转向和复位通过。

@@ -16,27 +16,30 @@ public class IntroductionSpeechLesson : MonoBehaviour
     private class Question
     {
         public AudioClip prompt;
-        [InspectorName("人工设置的问题"), TextArea(1, 3)] public string manuallyIssue;
+        [InspectorName("人工设置的问题"), TextArea(1, 3)] public string manuallyIssue =
+            "来跟同学们介绍下自己吧，你叫什么名字、几岁了、喜欢什么呀？";
         [InspectorName("Success")] public List<FeedbackEntry> feedback = new List<FeedbackEntry>();
     }
 
     [SerializeField] private TMP_Text stepScore;
     [SerializeField] private AudioSource promptSource;
     [InspectorName("Arrival Success"), SerializeField] private List<FeedbackEntry> arrivalFeedback = new List<FeedbackEntry>();
-    [SerializeField] private Question nameQuestion = new Question();
-    [SerializeField] private Question ageQuestion = new Question();
-    [SerializeField] private Question playQuestion = new Question();
-
-    public const float SilenceTimeoutSeconds = 20f;
-    [SerializeField, HideInInspector] private bool questionsInitialized;
-
-    private void OnValidate()
+    [Serializable]
+    private class GestureStep
     {
-        if (questionsInitialized) return;
-        nameQuestion.manuallyIssue = "你叫什么名字呀？";
-        ageQuestion.manuallyIssue = "你今年几岁啦？";
-        playQuestion.manuallyIssue = "你喜欢玩什么呀？";
-        questionsInitialized = true;
+        public AudioClip prompt;
+        [InspectorName("Success")] public List<FeedbackEntry> feedback = new List<FeedbackEntry>();
+    }
+
+    [SerializeField, InspectorName("挥手打招呼")] private GestureStep greeting = new GestureStep();
+    [SerializeField, InspectorName("自我介绍")] private Question introductionQuestion = new Question();
+    public const float SilenceTimeoutSeconds = 20f;
+    private bool acceptingWave;
+    private bool waveReceived;
+
+    public void NotifyWave()
+    {
+        if (acceptingWave) waveReceived = true;
     }
 
     [Serializable]
@@ -177,14 +180,14 @@ public class IntroductionSpeechLesson : MonoBehaviour
     }
 
     [ContextMenu("重试语音连接（运行时）")]
-    public void RetryVoice() { if (Application.isPlaying && isActiveAndEnabled && points < 4) StartSession(); }
+    public void RetryVoice() { if (Application.isPlaying && isActiveAndEnabled && points < 3) StartSession(); }
 
-    public void Run(Transform player, Action reminded, Action completed)
+    public void Run(Transform player, float reminderSeconds, Action reminded, Action completed)
     {
-        if (routine == null) routine = StartCoroutine(RunSteps(player, reminded, completed));
+        if (routine == null) routine = StartCoroutine(RunSteps(player, reminderSeconds, reminded, completed));
     }
 
-    private IEnumerator RunSteps(Transform player, Action reminded, Action completed)
+    private IEnumerator RunSteps(Transform player, float reminderSeconds, Action reminded, Action completed)
     {
         if (points == 0)
         {
@@ -192,23 +195,33 @@ public class IntroductionSpeechLesson : MonoBehaviour
             yield return Feedback(arrivalFeedback, player);
         }
 
-        Question[] questions = { nameQuestion, ageQuestion, playQuestion };
-        while (points < 4)
+        if (points == 1)
         {
-            int index = points - 1;
-            Question question = questions[index];
+            waveReceived = false;
+            while (!waveReceived)
+            {
+                yield return PlayPrompt(greeting.prompt);
+                acceptingWave = true;
+                float deadline = Time.time + reminderSeconds;
+                while (!waveReceived && Time.time < deadline) yield return null;
+                acceptingWave = false;
+                if (!waveReceived) reminded();
+            }
+            SetPoints(2);
+            yield return Feedback(greeting.feedback, player);
+        }
+
+        Question question = introductionQuestion;
+        while (points == 2)
+        {
             if (string.IsNullOrWhiteSpace(question.manuallyIssue))
             {
-                Debug.LogError($"第一关第 {index + 1} 题缺少人工设置的问题，请在 Inspector 填写。", this);
+                Debug.LogError("第一关自我介绍缺少人工设置的问题，请在 Inspector 填写。", this);
                 yield return new WaitUntil(() => !string.IsNullOrWhiteSpace(question.manuallyIssue));
             }
+            while (!Ready) yield return null;
             yield return PlayPrompt(question.prompt);
-            if (!Ready)
-            {
-                // Re-cue the child once recording is available after a slow start or retry.
-                yield return new WaitUntil(() => Ready);
-                yield return PlayPrompt(question.prompt);
-            }
+            if (!Ready) continue;
 
             answer = null;
             try
@@ -272,7 +285,7 @@ public class IntroductionSpeechLesson : MonoBehaviour
     private void SetPoints(int value)
     {
         points = value;
-        if (stepScore != null) stepScore.text = value + "/4";
+        if (stepScore != null) stepScore.text = value + "/3";
     }
 
     public void EndSession()
@@ -283,6 +296,8 @@ public class IntroductionSpeechLesson : MonoBehaviour
         for (int i = activeEntries.Count - 1; i >= 0; i--) activeEntries[i].Restore();
         activeEntries.Clear();
         CloseWorker();
+        acceptingWave = false;
+        waveReceived = false;
         SetPoints(0);
     }
 
